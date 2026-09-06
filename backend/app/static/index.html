@@ -866,6 +866,202 @@
       margin-top: auto;
       text-align: center;
     }
+
+    /* ── Comprehensive Mobile & Responsive Media Queries ── */
+    @media (max-width: 1024px) {
+      .workspace-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .document-preview-pane {
+        min-height: 480px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .gov-strip {
+        padding: 6px 12px;
+        font-size: 10px;
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+      }
+      .gov-strip-left, .gov-strip-right {
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      header {
+        padding: 10px 14px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .brand-container {
+        justify-content: flex-start;
+        gap: 10px;
+      }
+      .national-emblem-badge {
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
+      }
+      .brand-text h1 {
+        font-size: 16px;
+        flex-wrap: wrap;
+      }
+      .brand-text p {
+        display: none;
+      }
+
+      .header-user-panel {
+        justify-content: space-between;
+        width: 100%;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .header-user-panel .btn {
+        flex: 1;
+        text-align: center;
+      }
+
+      nav.portal-nav {
+        padding: 0 10px;
+        gap: 4px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      nav.portal-nav::-webkit-scrollbar {
+        display: none;
+      }
+      .nav-tab-btn {
+        padding: 10px 12px;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+
+      main {
+        padding: 12px 12px 30px;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+      .stat-box {
+        padding: 12px;
+      }
+      .stat-value {
+        font-size: 20px;
+      }
+      .stat-label {
+        font-size: 11px;
+      }
+
+      .stepper-steps {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .card-header {
+        padding: 12px 14px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .card-header > div {
+        width: 100%;
+      }
+      .card-header > button, .card-header > div > button {
+        width: 100%;
+      }
+
+      .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .gov-table {
+        min-width: 580px;
+      }
+
+      .modal-overlay {
+        padding: 10px;
+      }
+      .modal-box {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        max-height: 92vh;
+      }
+      .modal-header, .modal-body, .modal-footer {
+        padding: 12px 14px;
+      }
+
+      #toast-container {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+      }
+      .toast {
+        min-width: unset;
+        width: 100%;
+        font-size: 12px;
+      }
+
+      .unauth-hero {
+        padding: 24px 16px;
+      }
+      .unauth-cta-row {
+        flex-direction: column;
+        width: 100%;
+      }
+      .unauth-cta-row .btn {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+      .stepper-steps {
+        grid-template-columns: 1fr;
+      }
+      .user-pill {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        padding: 4px 8px;
+        font-size: 11px;
+      }
+      .document-preview-pane {
+        min-height: 380px;
+      }
+      .modal-footer {
+        flex-direction: column-reverse;
+      }
+      .modal-footer button {
+        width: 100%;
+      }
+      .preview-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .preview-toolbar > div {
+        width: 100%;
+      }
+      .preview-toolbar .btn {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 
