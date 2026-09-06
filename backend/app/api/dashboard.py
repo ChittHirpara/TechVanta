@@ -14,7 +14,7 @@ from app.core.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.document import Document, DocumentStatus
 from app.models.extracted_field import ExtractedField
-from app.models.user import User
+from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -57,46 +57,47 @@ async def get_stats(
     current_user: User = Depends(get_current_user),
 ) -> DashboardStats:
     """
-    Returns system-wide metrics:
+    Returns dashboard metrics (scoped to the user's uploaded documents for
+    field_officer role, or system-wide for admin/verifier roles):
 
-    - **total_documents**: every document ever uploaded
+    - **total_documents**: every document uploaded
     - **total_processed**: documents that have left the upload/processing phase
     - **pending_review**: documents waiting for a verifier
     - **verified**: documents fully signed-off
-    - **avg_confidence**: mean confidence score across all saved ``ExtractedField`` rows
+    - **avg_confidence**: mean confidence score across saved ``ExtractedField`` rows
     - **flagged_field_count**: fields that still need manual correction
     - **district_breakdown**: per-district totals with status sub-counts
     """
 
     # ── Document counts ───────────────────────────────────────────────────────
-    doc_counts = (
-        await db.execute(
-            select(
-                func.count().label("total"),
-                func.sum(
-                    case(
-                        (Document.status == DocumentStatus.needs_review, 1),
-                        else_=0,
-                    )
-                ).label("needs_review"),
-                func.sum(
-                    case(
-                        (Document.status == DocumentStatus.verified, 1),
-                        else_=0,
-                    )
-                ).label("verified"),
-                func.sum(
-                    case(
-                        (Document.status.in_([
-                            DocumentStatus.uploaded,
-                            DocumentStatus.processing,
-                        ]), 1),
-                        else_=0,
-                    )
-                ).label("in_progress"),
+    doc_stmt = select(
+        func.count().label("total"),
+        func.sum(
+            case(
+                (Document.status == DocumentStatus.needs_review, 1),
+                else_=0,
             )
-        )
-    ).one()
+        ).label("needs_review"),
+        func.sum(
+            case(
+                (Document.status == DocumentStatus.verified, 1),
+                else_=0,
+            )
+        ).label("verified"),
+        func.sum(
+            case(
+                (Document.status.in_([
+                    DocumentStatus.uploaded,
+                    DocumentStatus.processing,
+                ]), 1),
+                else_=0,
+            )
+        ).label("in_progress"),
+    )
+    if current_user.role == UserRole.field_officer:
+        doc_stmt = doc_stmt.where(Document.uploaded_by == current_user.id)
+
+    doc_counts = (await db.execute(doc_stmt)).one()
 
     total_documents = doc_counts.total or 0
     pending_review  = int(doc_counts.needs_review or 0)
@@ -105,17 +106,19 @@ async def get_stats(
     total_processed = total_documents - in_progress
 
     # ── Field metrics ─────────────────────────────────────────────────────────
-    field_stats = (
-        await db.execute(
-            select(
-                func.count().label("total_fields"),
-                func.avg(ExtractedField.confidence_score).label("avg_confidence"),
-                func.sum(
-                    case((ExtractedField.is_flagged.is_(True), 1), else_=0)
-                ).label("flagged_count"),
-            )
-        )
-    ).one()
+    field_stmt = select(
+        func.count().label("total_fields"),
+        func.avg(ExtractedField.confidence_score).label("avg_confidence"),
+        func.sum(
+            case((ExtractedField.is_flagged.is_(True), 1), else_=0)
+        ).label("flagged_count"),
+    )
+    if current_user.role == UserRole.field_officer:
+        field_stmt = field_stmt.join(
+            Document, ExtractedField.document_id == Document.id
+        ).where(Document.uploaded_by == current_user.id)
+
+    field_stats = (await db.execute(field_stmt)).one()
 
     total_fields        = int(field_stats.total_fields or 0)
     avg_confidence_raw  = field_stats.avg_confidence
@@ -123,29 +126,31 @@ async def get_stats(
     flagged_field_count = int(field_stats.flagged_count or 0)
 
     # ── District breakdown ────────────────────────────────────────────────────
+    district_stmt = select(
+        Document.district,
+        func.count().label("total"),
+        func.sum(
+            case((Document.status == DocumentStatus.verified, 1), else_=0)
+        ).label("verified"),
+        func.sum(
+            case((Document.status == DocumentStatus.needs_review, 1), else_=0)
+        ).label("needs_review"),
+        func.sum(
+            case(
+                (Document.status.in_([
+                    DocumentStatus.uploaded,
+                    DocumentStatus.processing,
+                ]), 1),
+                else_=0,
+            )
+        ).label("processing"),
+    )
+    if current_user.role == UserRole.field_officer:
+        district_stmt = district_stmt.where(Document.uploaded_by == current_user.id)
+
     district_rows = (
         await db.execute(
-            select(
-                Document.district,
-                func.count().label("total"),
-                func.sum(
-                    case((Document.status == DocumentStatus.verified, 1), else_=0)
-                ).label("verified"),
-                func.sum(
-                    case((Document.status == DocumentStatus.needs_review, 1), else_=0)
-                ).label("needs_review"),
-                func.sum(
-                    case(
-                        (Document.status.in_([
-                            DocumentStatus.uploaded,
-                            DocumentStatus.processing,
-                        ]), 1),
-                        else_=0,
-                    )
-                ).label("processing"),
-            )
-            .group_by(Document.district)
-            .order_by(func.count().desc())
+            district_stmt.group_by(Document.district).order_by(func.count().desc())
         )
     ).all()
 
