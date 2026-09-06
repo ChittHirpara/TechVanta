@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.egg-info/
+dist/
+.DS_Store
+uploads/
+*.db
+*.sqlite
+*.sqlite3
+

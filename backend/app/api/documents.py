@@ -1,0 +1,742 @@
+"""
+Documents router — full CRUD + verification workflow.
+
+Endpoints
+─────────
+  POST   /documents/upload                    Upload file, start pipeline (202)
+  GET    /documents/{id}                      Document detail + extracted fields
+  GET    /documents                           Paginated, filtered list
+  PATCH  /documents/{id}/fields/{field_name}  Correct a field (verifier/admin)
+  POST   /documents/{id}/verify               Mark verified (blocks on flagged fields)
+  POST   /documents/{id}/reprocess            Re-run full pipeline (verifier/admin)
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import mimetypes
+import shutil
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+from fastapi import (
+    APIRouter, BackgroundTasks, Body, Depends, File,
+    Form, Header, HTTPException, Query, UploadFile, status,
+)
+from fastapi.responses import FileResponse, StreamingResponse
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies import get_current_user, require_role
+from app.core.security import decode_access_token
+from app.db.session import get_db
+from app.models.audit_trail import AuditTrail
+from app.models.document import Document, DocumentStatus
+from app.models.extracted_field import ExtractedField
+from app.models.user import User, UserRole
+from app.models.verification_log import VerificationLog
+from app.schemas.document import (
+    DocumentDetail,
+    DocumentRead,
+    ExtractedFieldRead,
+    FieldPatchRequest,
+    PaginatedDocuments,
+)
+from app.services.dilrmp import build_dilrmp_export_payload, compute_file_sha256
+from app.services.pipeline import pipeline_broadcaster, process_document
+from app.services.validation import find_duplicates
+
+router = APIRouter(prefix="/documents", tags=["Documents"])
+
+# ── Config & Upload Hardening ──────────────────────────────────────────────────
+_UPLOAD_DIR = Path("uploads")
+_UPLOAD_DIR.mkdir(exist_ok=True)
+_ALLOWED_SUFFIXES = {".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif"}
+MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
+
+MAGIC_SIGNATURES: dict[str, list[bytes]] = {
+    ".pdf": [b"%PDF-"],
+    ".png": [b"\x89PNG\r\n\x1a\n", b"\x89PNG"],
+    ".jpg": [b"\xff\xd8\xff"],
+    ".jpeg": [b"\xff\xd8\xff"],
+    ".tiff": [b"II*\x00", b"MM\x00*"],
+    ".tif": [b"II*\x00", b"MM\x00*"],
+}
+
+
+# ── Shared helpers ────────────────────────────────────────────────────────────
+
+def _save_upload(file: UploadFile) -> Path:
+    suffix = Path(file.filename or "file").suffix.lower()
+    if suffix not in _ALLOWED_SUFFIXES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"Unsupported file type '{suffix}'. Allowed: {sorted(_ALLOWED_SUFFIXES)}",
+        )
+
+    # Validate header signature (magic bytes)
+    header = file.file.read(16)
+    if not header:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty.",
+        )
+
+    valid_signatures = MAGIC_SIGNATURES.get(suffix, [])
+    if valid_signatures and not any(header.startswith(sig) for sig in valid_signatures):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=f"File signature (magic bytes) does not match declared type '{suffix}'.",
+        )
+
+    file.file.seek(0)
+    dest = _UPLOAD_DIR / f"{uuid.uuid4()}{suffix}"
+    total_bytes = 0
+    oversized = False
+
+    with dest.open("wb") as fp:
+        while chunk := file.file.read(65536):
+            total_bytes += len(chunk)
+            if total_bytes > MAX_FILE_SIZE_BYTES:
+                oversized = True
+                break
+            fp.write(chunk)
+
+    if oversized:
+        dest.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds limit of {MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB.",
+        )
+
+    return dest
+
+
+async def _get_doc_or_404(doc_id: int, db: AsyncSession) -> Document:
+    doc = (
+        await db.execute(select(Document).where(Document.id == doc_id))
+    ).scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(status_code=404, detail=f"Document {doc_id} not found.")
+    return doc
+
+
+async def _get_field_or_404(
+    doc_id: int, field_name: str, db: AsyncSession
+) -> ExtractedField:
+    ef = (
+        await db.execute(
+            select(ExtractedField).where(
+                ExtractedField.document_id == doc_id,
+                ExtractedField.field_name == field_name,
+            )
+        )
+    ).scalar_one_or_none()
+    if ef is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Field '{field_name}' not found on document {doc_id}.",
+        )
+    return ef
+
+
+async def _write_audit(
+    db: AsyncSession,
+    *,
+    document_id: int | None,
+    user_id: int | None,
+    action: str,
+    details: dict,
+) -> None:
+    db.add(AuditTrail(
+        document_id=document_id,
+        user_id=user_id,
+        action=action,
+        details=details,
+    ))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /documents/upload
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post(
+    "/upload",
+    response_model=DocumentRead,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Upload a land-record document and start async OCR + extraction",
+)
+async def upload_document(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="PDF or image file"),
+    district: str | None = Form(None),
+    tehsil:   str | None = Form(None),
+    village:  str | None = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentRead:
+    """
+    Saves the file, creates a ``Document`` row with ``status=processing``,
+    enqueues the full OCR→extraction→validation pipeline as a BackgroundTask,
+    and returns the ``document_id`` immediately.
+
+    Poll ``GET /documents/{id}`` to watch:
+    ``processing → needs_review | verified``
+    """
+    try:
+        storage_path = _save_upload(file)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(500, f"File save failed: {exc}") from exc
+
+    doc = Document(
+        filename=file.filename or storage_path.name,
+        storage_path=str(storage_path.resolve()),
+        uploaded_by=current_user.id,
+        status=DocumentStatus.processing,   # immediately mark processing
+        district=district,
+        tehsil=tehsil,
+        village=village,
+    )
+    db.add(doc)
+    await db.flush()
+
+    await _write_audit(
+        db,
+        document_id=doc.id,
+        user_id=current_user.id,
+        action="document_uploaded",
+        details={"filename": doc.filename},
+    )
+    await db.commit()
+    await db.refresh(doc)
+
+    # Pipeline owns its own DB session (request session closes after response)
+    background_tasks.add_task(
+        process_document,
+        doc.id,
+        triggered_by_user_id=current_user.id,
+        db=None,
+    )
+
+    return DocumentRead.model_validate(doc)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/{id}
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{document_id}",
+    response_model=DocumentDetail,
+    summary="Fetch document metadata + all extracted fields with confidence scores",
+)
+async def get_document(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentDetail:
+    """
+    Returns the document metadata and its extracted fields.
+
+    While the pipeline is still running (``status=processing``) the
+    ``extracted_fields`` list will be empty.  Poll until status changes.
+    """
+    doc = await _get_doc_or_404(document_id, db)
+
+    fields = (
+        await db.execute(
+            select(ExtractedField)
+            .where(ExtractedField.document_id == document_id)
+            .order_by(ExtractedField.field_name)
+        )
+    ).scalars().all()
+
+    return DocumentDetail(
+        **DocumentRead.model_validate(doc).model_dump(),
+        extracted_fields=[ExtractedFieldRead.model_validate(f) for f in fields],
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "",
+    response_model=PaginatedDocuments,
+    summary="Paginated, filtered document list",
+)
+async def list_documents(
+    status:    DocumentStatus | None = Query(None, description="Filter by processing status"),
+    district:  str | None            = Query(None, description="Filter by district name"),
+    page:      int                   = Query(1, ge=1, description="Page number (1-based)"),
+    page_size: int                   = Query(20, ge=1, le=100, description="Items per page"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PaginatedDocuments:
+    base = select(Document)
+    if status:
+        base = base.where(Document.status == status)
+    if district:
+        base = base.where(Document.district.ilike(f"%{district}%"))
+
+    # Total count
+    count_stmt = select(func.count()).select_from(base.subquery())
+    total: int = (await db.execute(count_stmt)).scalar_one()
+
+    # Paginated rows
+    offset = (page - 1) * page_size
+    rows = (
+        await db.execute(
+            base.order_by(Document.created_at.desc())
+                .limit(page_size)
+                .offset(offset)
+        )
+    ).scalars().all()
+
+    return PaginatedDocuments(
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=[DocumentRead.model_validate(r) for r in rows],
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATCH /documents/{id}/fields/{field_name}
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.patch(
+    "/{document_id}/fields/{field_name}",
+    response_model=ExtractedFieldRead,
+    summary="Correct an extracted field value (verifier / admin only)",
+)
+async def patch_field(
+    document_id: int,
+    field_name: str,
+    payload: FieldPatchRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.verifier)),
+) -> ExtractedFieldRead:
+    """
+    Update the value of a single extracted field, clear its ``is_flagged``
+    flag, and write entries to both ``VerificationLog`` and ``AuditTrail``.
+
+    Only ``verifier`` and ``admin`` roles are permitted.
+    """
+    doc = await _get_doc_or_404(document_id, db)
+    ef  = await _get_field_or_404(document_id, field_name, db)
+
+    old_value = ef.value
+
+    # Update the field
+    ef.value      = payload.value.strip()
+    ef.is_flagged = False              # correction clears the flag
+
+    # Verification log
+    db.add(VerificationLog(
+        document_id=document_id,
+        verifier_id=current_user.id,
+        field_name=field_name,
+        old_value=old_value,
+        new_value=ef.value,
+    ))
+
+    # Audit trail
+    await _write_audit(db,
+        document_id=document_id,
+        user_id=current_user.id,
+        action="field_corrected",
+        details={
+            "field_name": field_name,
+            "old_value":  old_value,
+            "new_value":  ef.value,
+            "note":       payload.note,
+        },
+    )
+
+    # If all fields are now un-flagged, bump document status back to processing
+    # so the verifier can run /verify when ready
+    remaining_flags = (
+        await db.execute(
+            select(func.count())
+            .where(
+                ExtractedField.document_id == document_id,
+                ExtractedField.is_flagged.is_(True),
+            )
+        )
+    ).scalar_one()
+
+    if doc.status == DocumentStatus.needs_review and remaining_flags == 0:
+        # All flags cleared — document is now ready to be explicitly verified
+        await db.execute(
+            update(Document)
+            .where(Document.id == document_id)
+            .values(status=DocumentStatus.needs_review)   # still needs final /verify call
+        )
+
+    await db.commit()
+    await db.refresh(ef)
+    return ExtractedFieldRead.model_validate(ef)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /documents/{id}/verify
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post(
+    "/{document_id}/verify",
+    response_model=DocumentRead,
+    summary="Mark a document as verified (blocks if any field is still flagged)",
+)
+async def verify_document(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.verifier)),
+) -> DocumentRead:
+    """
+    Transitions ``status → verified``.
+
+    **Blocked** (422) if any ``ExtractedField.is_flagged == True``.
+    Correct all flagged fields first via
+    ``PATCH /documents/{id}/fields/{field_name}``.
+    """
+    doc = await _get_doc_or_404(document_id, db)
+
+    if doc.status == DocumentStatus.verified:
+        raise HTTPException(status_code=409, detail="Document is already verified.")
+
+    # Guard: reject if any field still flagged
+    flagged_count: int = (
+        await db.execute(
+            select(func.count())
+            .where(
+                ExtractedField.document_id == document_id,
+                ExtractedField.is_flagged.is_(True),
+            )
+        )
+    ).scalar_one()
+
+    if flagged_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"{flagged_count} field(s) are still flagged for review. "
+                "Correct them via PATCH /documents/{id}/fields/{field_name} first."
+            ),
+        )
+
+    # Promote status
+    await db.execute(
+        update(Document)
+        .where(Document.id == document_id)
+        .values(status=DocumentStatus.verified)
+    )
+
+    await _write_audit(db,
+        document_id=document_id,
+        user_id=current_user.id,
+        action="document_verified",
+        details={"verified_by": current_user.username},
+    )
+    await db.commit()
+
+    doc = await _get_doc_or_404(document_id, db)
+    return DocumentRead.model_validate(doc)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /documents/{id}/reprocess
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post(
+    "/{document_id}/reprocess",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Re-run full pipeline on an existing document (admin / verifier only)",
+)
+async def reprocess_document(
+    document_id: int,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.verifier)),
+) -> dict:
+    doc = await _get_doc_or_404(document_id, db)
+    if not Path(doc.storage_path).exists():
+        raise HTTPException(422, "Original file missing from disk; cannot reprocess.")
+
+    await _write_audit(db,
+        document_id=document_id,
+        user_id=current_user.id,
+        action="reprocess_requested",
+        details={},
+    )
+    await db.commit()
+
+    background_tasks.add_task(
+        process_document,
+        document_id,
+        triggered_by_user_id=current_user.id,
+        db=None,
+    )
+    return {"message": "Reprocessing enqueued.", "document_id": document_id}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/{id}/events  (Real-Time SSE Progress Stream)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{document_id}/events",
+    summary="Real-time Server-Sent Events (SSE) stream of pipeline progress",
+)
+async def stream_document_events(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Streams live step-by-step progress events for document processing.
+    Emits JSON payloads under `data:` with step name, percent, status, and message.
+    """
+    doc = await _get_doc_or_404(document_id, db)
+
+    async def event_generator():
+        # If document already finished processing, emit final status and close
+        if doc.status in (DocumentStatus.verified, DocumentStatus.needs_review):
+            payload = {
+                "event": "complete",
+                "step": "complete",
+                "percent": 100,
+                "status": doc.status.value,
+                "message": f"Document processing is already complete ({doc.status.value}).",
+            }
+            yield f"data: {json.dumps(payload)}\n\n"
+            return
+
+        queue = pipeline_broadcaster.subscribe(document_id)
+        try:
+            while True:
+                try:
+                    event_data = await asyncio.wait_for(queue.get(), timeout=25.0)
+                    yield f"data: {json.dumps(event_data)}\n\n"
+                    if event_data.get("event") in ("complete", "error"):
+                        break
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+        finally:
+            pipeline_broadcaster.unsubscribe(document_id, queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/{id}/duplicates  (Duplicate Detection & Fraud Shield)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{document_id}/duplicates",
+    summary="Detect potential duplicate/fraudulent land records across the database",
+)
+async def get_document_duplicates(
+    document_id: int,
+    threshold: float | None = Query(None, ge=0.0, le=100.0, description="Override fuzzy threshold (0-100)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    doc = await _get_doc_or_404(document_id, db)
+
+    fields = (
+        await db.execute(
+            select(ExtractedField).where(ExtractedField.document_id == document_id)
+        )
+    ).scalars().all()
+    field_map = {f.field_name: f.value for f in fields}
+
+    owner_name = field_map.get("owner_name")
+    survey_number = field_map.get("survey_number")
+
+    duplicates = await find_duplicates(
+        owner_name=owner_name,
+        survey_number=survey_number,
+        db_session=db,
+        threshold=threshold,
+    )
+    # Exclude self
+    matches = [d.to_dict() for d in duplicates if d.document_id != document_id]
+
+    return {
+        "document_id": document_id,
+        "queried_owner": owner_name,
+        "queried_survey_number": survey_number,
+        "duplicate_count": len(matches),
+        "has_suspected_duplicates": len(matches) > 0,
+        "matches": matches,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/{id}/export/dilrmp  (DILRMP 2.0 Standard Export with ULPIN)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{document_id}/export/dilrmp",
+    summary="Export government DILRMP 2.0 standard record with ULPIN & cryptographic seal",
+)
+async def export_dilrmp(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    doc = await _get_doc_or_404(document_id, db)
+    fields = (
+        await db.execute(
+            select(ExtractedField).where(ExtractedField.document_id == document_id)
+        )
+    ).scalars().all()
+
+    payload = build_dilrmp_export_payload(
+        document=doc,
+        fields=fields,
+        verifier_username=current_user.username,
+    )
+    return payload
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/{id}/integrity  (Cryptographic Document Seal & Tamper Check)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{document_id}/integrity",
+    summary="Verify cryptographic SHA-256 seal and document file integrity",
+)
+async def verify_integrity(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    doc = await _get_doc_or_404(document_id, db)
+    file_path = Path(doc.storage_path)
+
+    if not file_path.exists():
+        return {
+            "document_id": doc.id,
+            "filename": doc.filename,
+            "file_exists": False,
+            "file_size_bytes": 0,
+            "sha256_hash": None,
+            "status": "COMPROMISED_FILE_MISSING",
+            "verified_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    sha256 = compute_file_sha256(file_path)
+    return {
+        "document_id": doc.id,
+        "filename": doc.filename,
+        "file_exists": True,
+        "file_size_bytes": file_path.stat().st_size,
+        "sha256_hash": sha256,
+        "status": "SECURED_VERIFIED",
+        "verified_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ── Helpers for file token authentication ────────────────────────────────────
+
+async def _resolve_user(token: str | None, auth_header: str | None, db: AsyncSession) -> User:
+    from app.services.user_service import get_user_by_id
+
+    token_str = token
+    if not token_str and auth_header and auth_header.startswith("Bearer "):
+        token_str = auth_header[7:].strip()
+    if not token_str:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    try:
+        payload = decode_access_token(token_str)
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        user = await get_user_by_id(db, int(user_id))
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        return user
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/{id}/file  (Serve Scanned PDF / Image for Frontend Preview)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{document_id}/file",
+    summary="Download or stream original deed file for split-screen frontend rendering",
+)
+async def get_document_file(
+    document_id: int,
+    token: str | None = Query(None, description="Auth token for direct iframe or img preview"),
+    authorization: str | None = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    await _resolve_user(token, authorization, db)
+    doc = await _get_doc_or_404(document_id, db)
+    file_path = Path(doc.storage_path)
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Deed file not found on disk.")
+
+    media_type, _ = mimetypes.guess_type(doc.filename)
+    if not media_type:
+        media_type = "application/pdf" if doc.filename.lower().endswith(".pdf") else "application/octet-stream"
+
+    return FileResponse(
+        path=file_path,
+        media_type=media_type,
+        filename=doc.filename,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/{id}/audit  (Chronological Document Audit Trail)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{document_id}/audit",
+    summary="Fetch complete chronological audit trail history for this document",
+)
+async def get_document_audit(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    doc = await _get_doc_or_404(document_id, db)
+    stmt = (
+        select(AuditTrail)
+        .where(AuditTrail.document_id == document_id)
+        .order_by(AuditTrail.timestamp.asc())
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    return [
+        {
+            "id": r.id,
+            "document_id": r.document_id,
+            "user_id": r.user_id,
+            "action": r.action,
+            "details": r.details,
+            "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+        }
+        for r in rows
+    ]
+
+

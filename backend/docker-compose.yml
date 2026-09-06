@@ -1,0 +1,42 @@
+version: "3.11"
+
+services:
+  # ── PostgreSQL ────────────────────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: land_records
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI App ───────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override DB_URL to point at the docker service name
+      DB_URL: postgresql+asyncpg://postgres:postgres@db:5432/land_records
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app        # hot-reload in dev
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
