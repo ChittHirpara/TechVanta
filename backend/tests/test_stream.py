@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 @pytest.mark.asyncio
 async def test_stream_events_requires_auth(client: AsyncClient):
-    """GET /documents/{id}/events must require authentication."""
-    resp = await client.get("/documents/1/events")
+    """GET /api/v1/documents/{id}/events must require authentication."""
+    resp = await client.get("/api/v1/documents/1/events")
     assert resp.status_code == 401
 
 
@@ -17,10 +17,10 @@ async def test_stream_events_requires_auth(client: AsyncClient):
 async def test_stream_events_completed_document(
     client: AsyncClient, admin_token: str, seeded_document: dict
 ):
-    """GET /documents/{id}/events on existing document returns SSE stream."""
+    """GET /api/v1/documents/{id}/events on existing document returns SSE stream."""
     doc_id = seeded_document["id"]
     resp = await client.get(
-        f"/documents/{doc_id}/events",
+        f"/api/v1/documents/{doc_id}/events",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200
@@ -32,10 +32,10 @@ async def test_stream_events_completed_document(
 async def test_get_document_duplicates_endpoint(
     client: AsyncClient, admin_token: str, seeded_document: dict
 ):
-    """GET /documents/{id}/duplicates returns candidate matches."""
+    """GET /api/v1/documents/{id}/duplicates returns candidate matches."""
     doc_id = seeded_document["id"]
     resp = await client.get(
-        f"/documents/{doc_id}/duplicates",
+        f"/api/v1/documents/{doc_id}/duplicates",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200, resp.text
@@ -62,7 +62,7 @@ async def test_system_diagnostics_endpoint(client: AsyncClient):
 async def test_get_document_file_and_audit(
     client: AsyncClient, admin_token: str, seeded_document: dict, db: AsyncSession
 ):
-    """GET /documents/{id}/file and /audit must work for frontend rendering."""
+    """GET /api/v1/documents/{id}/file and /audit must work for frontend rendering."""
     import tempfile
     from pathlib import Path
     from sqlalchemy import update
@@ -81,13 +81,13 @@ async def test_get_document_file_and_audit(
         await db.commit()
 
         # Test file endpoint with query token (iframe simulation)
-        file_resp = await client.get(f"/documents/{doc_id}/file?token={admin_token}")
+        file_resp = await client.get(f"/api/v1/documents/{doc_id}/file?token={admin_token}")
         assert file_resp.status_code == 200
         assert file_resp.content == b"%PDF-1.4 test preview content"
 
         # Test audit endpoint
         audit_resp = await client.get(
-            f"/documents/{doc_id}/audit",
+            f"/api/v1/documents/{doc_id}/audit",
             headers={"Authorization": f"Bearer {admin_token}"},
         )
         assert audit_resp.status_code == 200

@@ -16,7 +16,7 @@ async def test_upload_rejects_spoofed_extension(client: AsyncClient, admin_token
 
     with patch("app.api.documents.process_document"):
         resp = await client.post(
-            "/documents/upload",
+            "/api/v1/documents/upload",
             headers={"Authorization": f"Bearer {admin_token}"},
             files={"file": ("fake.pdf", fake_pdf, "application/pdf")},
         )
@@ -31,7 +31,7 @@ async def test_upload_rejects_empty_file(client: AsyncClient, admin_token: str):
 
     with patch("app.api.documents.process_document"):
         resp = await client.post(
-            "/documents/upload",
+            "/api/v1/documents/upload",
             headers={"Authorization": f"Bearer {admin_token}"},
             files={"file": ("empty.pdf", empty_file, "application/pdf")},
         )
@@ -46,7 +46,7 @@ async def test_upload_accepts_valid_magic_bytes(client: AsyncClient, admin_token
 
     with patch("app.api.documents.process_document"):
         resp = await client.post(
-            "/documents/upload",
+            "/api/v1/documents/upload",
             headers={"Authorization": f"Bearer {admin_token}"},
             files={"file": ("valid.pdf", valid_pdf, "application/pdf")},
         )
@@ -62,7 +62,7 @@ async def test_upload_rejects_oversized_file(client: AsyncClient, admin_token: s
 
     with patch("app.api.documents.MAX_FILE_SIZE_BYTES", 100):
         resp = await client.post(
-            "/documents/upload",
+            "/api/v1/documents/upload",
             headers={"Authorization": f"Bearer {admin_token}"},
             files={"file": ("huge.pdf", tiny_pdf, "application/pdf")},
         )

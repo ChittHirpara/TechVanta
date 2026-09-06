@@ -157,6 +157,9 @@ class PipelineResult:
 # Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+from app.services.audit_service import write_audit
+
+
 async def _log_audit(
     db: AsyncSession,
     *,
@@ -165,20 +168,15 @@ async def _log_audit(
     action: str,
     details: dict[str, Any] | None = None,
 ) -> None:
-    """Append a row to audit_trails. Swallows its own errors to stay non-fatal."""
-    try:
-        from app.models.audit_trail import AuditTrail
-
-        entry = AuditTrail(
-            document_id=document_id,
-            user_id=user_id,
-            action=action,
-            details=details or {},
-        )
-        db.add(entry)
-        await db.flush()          # write within the current transaction
-    except Exception as exc:      # pragma: no cover
-        log.warning("[pipeline] AuditTrail write failed: %s", exc)
+    """Append a row to audit_trails via centralized audit service."""
+    await write_audit(
+        db,
+        action,
+        document_id=document_id,
+        user_id=user_id,
+        details=details,
+        flush=True,
+    )
 
 
 async def _set_document_status(

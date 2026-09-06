@@ -43,6 +43,7 @@ from app.schemas.document import (
     FieldPatchRequest,
     PaginatedDocuments,
 )
+from app.services.audit_service import write_audit
 from app.services.dilrmp import build_dilrmp_export_payload, compute_file_sha256
 from app.services.pipeline import pipeline_broadcaster, process_document
 from app.services.validation import find_duplicates
@@ -154,22 +155,6 @@ async def _get_field_or_404(
     return ef
 
 
-async def _write_audit(
-    db: AsyncSession,
-    *,
-    document_id: int | None,
-    user_id: int | None,
-    action: str,
-    details: dict,
-) -> None:
-    db.add(AuditTrail(
-        document_id=document_id,
-        user_id=user_id,
-        action=action,
-        details=details,
-    ))
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /documents/upload
 # ─────────────────────────────────────────────────────────────────────────────
@@ -216,11 +201,11 @@ async def upload_document(
     db.add(doc)
     await db.flush()
 
-    await _write_audit(
+    await write_audit(
         db,
+        "document_uploaded",
         document_id=doc.id,
         user_id=current_user.id,
-        action="document_uploaded",
         details={"filename": doc.filename},
     )
     await db.commit()
@@ -363,10 +348,11 @@ async def patch_field(
     ))
 
     # Audit trail
-    await _write_audit(db,
+    await write_audit(
+        db,
+        "field_corrected",
         document_id=document_id,
         user_id=current_user.id,
-        action="field_corrected",
         details={
             "field_name": field_name,
             "old_value":  old_value,
@@ -454,10 +440,11 @@ async def verify_document(
         .values(status=DocumentStatus.verified)
     )
 
-    await _write_audit(db,
+    await write_audit(
+        db,
+        "document_verified",
         document_id=document_id,
         user_id=current_user.id,
-        action="document_verified",
         details={"verified_by": current_user.username},
     )
     await db.commit()
@@ -486,10 +473,11 @@ async def reprocess_document(
     if not Path(doc.storage_path).exists():
         raise HTTPException(422, "Original file missing from disk; cannot reprocess.")
 
-    await _write_audit(db,
+    await write_audit(
+        db,
+        "reprocess_requested",
         document_id=document_id,
         user_id=current_user.id,
-        action="reprocess_requested",
         details={},
     )
     await db.commit()

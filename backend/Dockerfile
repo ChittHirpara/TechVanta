@@ -21,11 +21,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ── Stage 3: final ─────────────────────────────────────────────────────────────
 FROM deps AS final
 
-COPY . .
+# Create non-root system user and ensure upload directory exists with proper ownership
+RUN groupadd -r appgroup && useradd -r -g appgroup -d /app appuser \
+ && mkdir -p /app/uploads \
+ && chown -R appuser:appgroup /app
+
+COPY --chown=appuser:appgroup . .
+
+USER appuser
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

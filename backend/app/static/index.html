@@ -829,7 +829,7 @@
         formData.append("username", username);
         formData.append("password", password);
 
-        const resp = await fetch("/auth/login", {
+        const resp = await fetch("/api/v1/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: formData,
@@ -879,7 +879,7 @@
     // Refresh Dashboard Stats
     async function refreshStats() {
       try {
-        const resp = await fetch("/dashboard/stats", {
+        const resp = await fetch("/api/v1/dashboard/stats", {
           headers: { "Authorization": `Bearer ${authToken}` }
         });
         if (!resp.ok) return;
@@ -916,7 +916,7 @@
       formData.append("village", document.getElementById("uploadVillage").value);
 
       try {
-        const resp = await fetch("/documents/upload", {
+        const resp = await fetch("/api/v1/documents/upload", {
           method: "POST",
           headers: { "Authorization": `Bearer ${authToken}` },
           body: formData,
@@ -958,7 +958,7 @@
       // Close previous SSE if any
       if (sseSource) sseSource.close();
 
-      sseSource = new EventSource(`/documents/${docId}/events?token=${authToken}`);
+      sseSource = new EventSource(`/api/v1/documents/${docId}/events?token=${authToken}`);
 
       sseSource.onmessage = function(e) {
         try {
@@ -998,7 +998,7 @@
     // Load Document List
     async function loadDocumentList() {
       try {
-        const resp = await fetch("/documents?page_size=30", {
+        const resp = await fetch("/api/v1/documents?page_size=30", {
           headers: { "Authorization": `Bearer ${authToken}` }
         });
         if (!resp.ok) return;
@@ -1039,7 +1039,7 @@
     async function loadDocumentDetail(docId) {
       activeDocId = docId;
       try {
-        const resp = await fetch(`/documents/${docId}`, {
+        const resp = await fetch(`/api/v1/documents/${docId}`, {
           headers: { "Authorization": `Bearer ${authToken}` }
         });
         if (!resp.ok) return;
@@ -1058,11 +1058,11 @@
         const viewDeedBtn = document.getElementById("btnViewDeedFile");
         if (viewDeedBtn) {
           viewDeedBtn.style.display = "inline-flex";
-          viewDeedBtn.href = `/documents/${docId}/file?token=${authToken}`;
+          viewDeedBtn.href = `/api/v1/documents/${docId}/file?token=${authToken}`;
         }
 
         // Auto-fetch audit trail history
-        fetch(`/documents/${docId}/audit`, {
+        fetch(`/api/v1/documents/${docId}/audit`, {
           headers: { "Authorization": `Bearer ${authToken}` }
         }).then(r => r.json()).then(logs => {
           document.getElementById("auditLogPreview").textContent = JSON.stringify(logs, null, 2);
@@ -1113,7 +1113,7 @@
       const newVal = input.value;
 
       try {
-        const resp = await fetch(`/documents/${activeDocId}/fields/${fieldName}`, {
+        const resp = await fetch(`/api/v1/documents/${activeDocId}/fields/${fieldName}`, {
           method: "PATCH",
           headers: {
             "Authorization": `Bearer ${authToken}`,
@@ -1140,7 +1140,7 @@
     async function verifyActiveDocument() {
       if (!activeDocId) return;
       try {
-        const resp = await fetch(`/documents/${activeDocId}/verify`, {
+        const resp = await fetch(`/api/v1/documents/${activeDocId}/verify`, {
           method: "POST",
           headers: { "Authorization": `Bearer ${authToken}` }
         });
@@ -1162,7 +1162,7 @@
     // Duplicate Check
     async function checkForDuplicatesAlert(docId) {
       try {
-        const resp = await fetch(`/documents/${docId}/duplicates`, {
+        const resp = await fetch(`/api/v1/documents/${docId}/duplicates`, {
           headers: { "Authorization": `Bearer ${authToken}` }
         });
         if (!resp.ok) return;
@@ -1186,7 +1186,7 @@
       container.innerHTML = `<div style="text-align:center; padding:2rem;">Scanning database records...</div>`;
 
       try {
-        const resp = await fetch(`/documents/${activeDocId}/duplicates`, {
+        const resp = await fetch(`/api/v1/documents/${activeDocId}/duplicates`, {
           headers: { "Authorization": `Bearer ${authToken}` }
         });
         const data = await resp.json();
@@ -1227,7 +1227,7 @@
     async function exportDILRMP() {
       if (!activeDocId) { alert("Please select a document first."); return; }
       try {
-        const resp = await fetch(`/documents/${activeDocId}/export/dilrmp`, {
+        const resp = await fetch(`/api/v1/documents/${activeDocId}/export/dilrmp`, {
           headers: { "Authorization": `Bearer ${authToken}` }
         });
         const data = await resp.json();
@@ -1245,7 +1245,7 @@
     async function pushToLRMS() {
       if (!activeDocId) { alert("Please select a document first."); return; }
       try {
-        const resp = await fetch(`/integrations/lrms/push/${activeDocId}`, {
+        const resp = await fetch(`/api/v1/integrations/lrms/push/${activeDocId}`, {
           method: "POST",
           headers: { "Authorization": `Bearer ${authToken}` }
         });
@@ -1260,7 +1260,7 @@
     async function pushToGIS() {
       if (!activeDocId) { alert("Please select a document first."); return; }
       try {
-        const resp = await fetch(`/integrations/gis/push/${activeDocId}`, {
+        const resp = await fetch(`/api/v1/integrations/gis/push/${activeDocId}`, {
           method: "POST",
           headers: { "Authorization": `Bearer ${authToken}` }
         });
@@ -1275,7 +1275,7 @@
     async function checkDocumentIntegrity() {
       if (!activeDocId) { alert("Please select a document first."); return; }
       try {
-        const resp = await fetch(`/documents/${activeDocId}/integrity`, {
+        const resp = await fetch(`/api/v1/documents/${activeDocId}/integrity`, {
           headers: { "Authorization": `Bearer ${authToken}` }
         });
         const data = await resp.json();
