@@ -43,6 +43,7 @@ from app.schemas.document import (
     FieldPatchRequest,
     PaginatedDocuments,
 )
+from app.services.audit_service import write_audit
 from app.services.dilrmp import build_dilrmp_export_payload, compute_file_sha256
 from app.services.pipeline import pipeline_broadcaster, process_document
 from app.services.validation import find_duplicates
@@ -113,6 +114,19 @@ def _save_upload(file: UploadFile) -> Path:
     return dest
 
 
+def require_document_access(doc: Document, current_user: User) -> None:
+    """
+    Enforce object-level access control:
+    - field_officer: can only access documents they uploaded
+    - verifier and admin: can access any document
+    """
+    if current_user.role == UserRole.field_officer and doc.uploaded_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: you do not have permission to access this document.",
+        )
+
+
 async def _get_doc_or_404(doc_id: int, db: AsyncSession) -> Document:
     doc = (
         await db.execute(select(Document).where(Document.id == doc_id))
@@ -139,22 +153,6 @@ async def _get_field_or_404(
             detail=f"Field '{field_name}' not found on document {doc_id}.",
         )
     return ef
-
-
-async def _write_audit(
-    db: AsyncSession,
-    *,
-    document_id: int | None,
-    user_id: int | None,
-    action: str,
-    details: dict,
-) -> None:
-    db.add(AuditTrail(
-        document_id=document_id,
-        user_id=user_id,
-        action=action,
-        details=details,
-    ))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -203,11 +201,11 @@ async def upload_document(
     db.add(doc)
     await db.flush()
 
-    await _write_audit(
+    await write_audit(
         db,
+        "document_uploaded",
         document_id=doc.id,
         user_id=current_user.id,
-        action="document_uploaded",
         details={"filename": doc.filename},
     )
     await db.commit()
@@ -245,6 +243,7 @@ async def get_document(
     ``extracted_fields`` list will be empty.  Poll until status changes.
     """
     doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
 
     fields = (
         await db.execute(
@@ -278,6 +277,8 @@ async def list_documents(
     current_user: User = Depends(get_current_user),
 ) -> PaginatedDocuments:
     base = select(Document)
+    if current_user.role == UserRole.field_officer:
+        base = base.where(Document.uploaded_by == current_user.id)
     if status:
         base = base.where(Document.status == status)
     if district:
@@ -328,6 +329,7 @@ async def patch_field(
     Only ``verifier`` and ``admin`` roles are permitted.
     """
     doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
     ef  = await _get_field_or_404(document_id, field_name, db)
 
     old_value = ef.value
@@ -346,10 +348,11 @@ async def patch_field(
     ))
 
     # Audit trail
-    await _write_audit(db,
+    await write_audit(
+        db,
+        "field_corrected",
         document_id=document_id,
         user_id=current_user.id,
-        action="field_corrected",
         details={
             "field_name": field_name,
             "old_value":  old_value,
@@ -405,6 +408,7 @@ async def verify_document(
     ``PATCH /documents/{id}/fields/{field_name}``.
     """
     doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
 
     if doc.status == DocumentStatus.verified:
         raise HTTPException(status_code=409, detail="Document is already verified.")
@@ -436,10 +440,11 @@ async def verify_document(
         .values(status=DocumentStatus.verified)
     )
 
-    await _write_audit(db,
+    await write_audit(
+        db,
+        "document_verified",
         document_id=document_id,
         user_id=current_user.id,
-        action="document_verified",
         details={"verified_by": current_user.username},
     )
     await db.commit()
@@ -464,13 +469,15 @@ async def reprocess_document(
     current_user: User = Depends(require_role(UserRole.admin, UserRole.verifier)),
 ) -> dict:
     doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
     if not Path(doc.storage_path).exists():
         raise HTTPException(422, "Original file missing from disk; cannot reprocess.")
 
-    await _write_audit(db,
+    await write_audit(
+        db,
+        "reprocess_requested",
         document_id=document_id,
         user_id=current_user.id,
-        action="reprocess_requested",
         details={},
     )
     await db.commit()
@@ -502,6 +509,7 @@ async def stream_document_events(
     Emits JSON payloads under `data:` with step name, percent, status, and message.
     """
     doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
 
     async def event_generator():
         # If document already finished processing, emit final status and close
@@ -555,6 +563,7 @@ async def get_document_duplicates(
     current_user: User = Depends(get_current_user),
 ):
     doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
 
     fields = (
         await db.execute(
@@ -599,6 +608,7 @@ async def export_dilrmp(
     current_user: User = Depends(get_current_user),
 ):
     doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
     fields = (
         await db.execute(
             select(ExtractedField).where(ExtractedField.document_id == document_id)
@@ -627,6 +637,7 @@ async def verify_integrity(
     current_user: User = Depends(get_current_user),
 ):
     doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
     file_path = Path(doc.storage_path)
 
     if not file_path.exists():
@@ -689,8 +700,9 @@ async def get_document_file(
     authorization: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
-    await _resolve_user(token, authorization, db)
+    current_user = await _resolve_user(token, authorization, db)
     doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
     file_path = Path(doc.storage_path)
 
     if not file_path.exists():
@@ -721,6 +733,7 @@ async def get_document_audit(
     current_user: User = Depends(get_current_user),
 ):
     doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
     stmt = (
         select(AuditTrail)
         .where(AuditTrail.document_id == document_id)

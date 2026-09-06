@@ -25,10 +25,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, require_role
 from app.db.session import get_db
-from app.models.audit_trail import AuditTrail
 from app.models.document import Document, DocumentStatus
 from app.models.extracted_field import ExtractedField
 from app.models.user import User, UserRole
+from app.services.audit_service import write_audit
 from app.services.integrations import (
     build_gis_payload,
     build_lrms_payload,
@@ -84,22 +84,6 @@ async def _load_fields_dict(doc_id: int, db: AsyncSession) -> dict[str, str | No
     return {row.field_name: row.value for row in rows}
 
 
-async def _write_audit(
-    db: AsyncSession,
-    *,
-    document_id: int,
-    user_id: int,
-    action: str,
-    details: dict,
-) -> None:
-    db.add(AuditTrail(
-        document_id=document_id,
-        user_id=user_id,
-        action=action,
-        details=details,
-    ))
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /integrations/lrms/push/{document_id}
 # ─────────────────────────────────────────────────────────────────────────────
@@ -149,10 +133,11 @@ async def push_to_lrms(
     result = mock_push_lrms(document_id, doc.district, payload)
 
     # ── Audit: log the full payload + reference ID permanently ───────────────
-    await _write_audit(db,
+    await write_audit(
+        db,
+        "lrms_push",
         document_id=document_id,
         user_id=current_user.id,
-        action="lrms_push",
         details={
             "reference_id": result.reference_id,
             "status":       result.status,
@@ -182,7 +167,7 @@ async def push_to_lrms(
     "/gis/push/{document_id}",
     response_model=IntegrationResponse,
     status_code=status.HTTP_200_OK,
-    summary="Push a verified document's parcel data to the GIS portal",
+    summary="Push verified geospatial metadata to the State GIS portal",
 )
 async def push_to_gis(
     document_id: int,
@@ -190,13 +175,8 @@ async def push_to_gis(
     current_user: User = Depends(require_role(UserRole.admin, UserRole.verifier)),
 ) -> IntegrationResponse:
     """
-    Builds the GIS parcel-update payload (geographic identifiers + area +
-    land classification), logs it to ``AuditTrail``, and returns a mock
-    queued response with a GIS-style reference ID.
-
-    **Fields included in the GIS payload:**
-    survey_number, khasra_number, plot_area, land_classification,
-    owner_name, district, tehsil, village.
+    Builds the GIS portal geo-package for the verified document,
+    pushes it (mocked), and logs the full payload to ``AuditTrail``.
 
     GIS updates are typically asynchronous in real portals — the ``status``
     field will read ``"queued"`` to reflect this.
@@ -219,10 +199,11 @@ async def push_to_gis(
     result = mock_push_gis(document_id, doc.district, payload)
 
     # ── Audit: log the full payload + reference ID permanently ───────────────
-    await _write_audit(db,
+    await write_audit(
+        db,
+        "gis_push",
         document_id=document_id,
         user_id=current_user.id,
-        action="gis_push",
         details={
             "reference_id": result.reference_id,
             "status":       result.status,

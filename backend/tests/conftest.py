@@ -92,12 +92,12 @@ async def client(engine) -> AsyncClient:
 @pytest.fixture
 async def admin_token(client: AsyncClient) -> str:
     """Register an admin user and return a valid Bearer token."""
-    await client.post("/auth/register", json={
+    await client.post("/api/v1/auth/register", json={
         "username": "alice_admin",
         "password": "Admin1234!",
         "role": "admin",
     })
-    resp = await client.post("/auth/login", json={
+    resp = await client.post("/api/v1/auth/login", json={
         "username": "alice_admin",
         "password": "Admin1234!",
     })
@@ -108,12 +108,12 @@ async def admin_token(client: AsyncClient) -> str:
 @pytest.fixture
 async def verifier_token(client: AsyncClient) -> str:
     """Register a verifier user and return a valid Bearer token."""
-    await client.post("/auth/register", json={
+    await client.post("/api/v1/auth/register", json={
         "username": "bob_verifier",
         "password": "Verif5678!",
         "role": "verifier",
     })
-    resp = await client.post("/auth/login", json={
+    resp = await client.post("/api/v1/auth/login", json={
         "username": "bob_verifier",
         "password": "Verif5678!",
     })
@@ -124,12 +124,12 @@ async def verifier_token(client: AsyncClient) -> str:
 @pytest.fixture
 async def field_officer_token(client: AsyncClient) -> str:
     """Register a field officer and return a valid Bearer token."""
-    await client.post("/auth/register", json={
+    await client.post("/api/v1/auth/register", json={
         "username": "carol_officer",
         "password": "Officer99!",
         "role": "field_officer",
     })
-    resp = await client.post("/auth/login", json={
+    resp = await client.post("/api/v1/auth/login", json={
         "username": "carol_officer",
         "password": "Officer99!",
     })

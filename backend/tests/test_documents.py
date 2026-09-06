@@ -32,7 +32,7 @@ async def test_upload_returns_202(client: AsyncClient, admin_token: str):
 
     with patch("app.api.documents.process_document") as mock_pipeline:
         resp = await client.post(
-            "/documents/upload",
+            "/api/v1/documents/upload",
             headers={"Authorization": f"Bearer {admin_token}"},
             files={"file": ("deed.pdf", pdf_bytes, "application/pdf")},
             data={"district": "Jaipur", "tehsil": "Sanganer"},
@@ -53,7 +53,7 @@ async def test_upload_unsupported_type(client: AsyncClient, admin_token: str):
     """Non-PDF/image file should be rejected with 415."""
     with patch("app.api.documents.process_document"):
         resp = await client.post(
-            "/documents/upload",
+            "/api/v1/documents/upload",
             headers={"Authorization": f"Bearer {admin_token}"},
             files={"file": ("data.csv", io.BytesIO(b"a,b,c"), "text/csv")},
         )
@@ -63,7 +63,7 @@ async def test_upload_unsupported_type(client: AsyncClient, admin_token: str):
 @pytest.mark.asyncio
 async def test_upload_requires_auth(client: AsyncClient):
     resp = await client.post(
-        "/documents/upload",
+        "/api/v1/documents/upload",
         files={"file": ("deed.pdf", io.BytesIO(b"%PDF"), "application/pdf")},
     )
     assert resp.status_code == 401
@@ -77,10 +77,10 @@ async def test_upload_requires_auth(client: AsyncClient):
 async def test_get_document_with_fields(
     client: AsyncClient, admin_token: str, seeded_document: dict
 ):
-    """GET /documents/{id} must embed extracted_fields."""
+    """GET /api/v1/documents/{id} must embed extracted_fields."""
     doc_id = seeded_document["id"]
     resp = await client.get(
-        f"/documents/{doc_id}",
+        f"/api/v1/documents/{doc_id}",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200, resp.text
@@ -104,7 +104,7 @@ async def test_get_document_with_fields(
 @pytest.mark.asyncio
 async def test_get_document_not_found(client: AsyncClient, admin_token: str):
     resp = await client.get(
-        "/documents/99999",
+        "/api/v1/documents/99999",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 404
@@ -119,7 +119,7 @@ async def test_list_documents_pagination(
     client: AsyncClient, admin_token: str, seeded_document: dict
 ):
     resp = await client.get(
-        "/documents?page=1&page_size=10",
+        "/api/v1/documents?page=1&page_size=10",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200
@@ -136,7 +136,7 @@ async def test_list_documents_status_filter(
     client: AsyncClient, admin_token: str, seeded_document: dict
 ):
     resp = await client.get(
-        "/documents?status=needs_review",
+        "/api/v1/documents?status=needs_review",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200
@@ -149,7 +149,7 @@ async def test_list_documents_district_filter(
     client: AsyncClient, admin_token: str, seeded_document: dict
 ):
     resp = await client.get(
-        "/documents?district=Jaipur",
+        "/api/v1/documents?district=Jaipur",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200
@@ -167,10 +167,10 @@ async def test_patch_field_clears_flag(
     client: AsyncClient, verifier_token: str,
     seeded_document: dict, db: AsyncSession
 ):
-    """PATCH /documents/{id}/fields/{name} should clear is_flagged."""
+    """PATCH /api/v1/documents/{id}/fields/{name} should clear is_flagged."""
     doc_id = seeded_document["id"]
     resp = await client.patch(
-        f"/documents/{doc_id}/fields/khasra_number",
+        f"/api/v1/documents/{doc_id}/fields/khasra_number",
         headers={"Authorization": f"Bearer {verifier_token}"},
         json={"value": "451/2", "note": "OCR misread l as 1"},
     )
@@ -188,7 +188,7 @@ async def test_patch_field_writes_verification_log(
     """PATCH must write a VerificationLog row with old and new values."""
     doc_id = seeded_document["id"]
     await client.patch(
-        f"/documents/{doc_id}/fields/khasra_number",
+        f"/api/v1/documents/{doc_id}/fields/khasra_number",
         headers={"Authorization": f"Bearer {verifier_token}"},
         json={"value": "451/2"},
     )
@@ -213,7 +213,7 @@ async def test_patch_field_writes_audit_trail(
     """PATCH must write an AuditTrail row with action='field_corrected'."""
     doc_id = seeded_document["id"]
     await client.patch(
-        f"/documents/{doc_id}/fields/khasra_number",
+        f"/api/v1/documents/{doc_id}/fields/khasra_number",
         headers={"Authorization": f"Bearer {verifier_token}"},
         json={"value": "451/2"},
     )
@@ -236,7 +236,7 @@ async def test_patch_field_forbidden_for_officer(
     """field_officer role must receive 403."""
     doc_id = seeded_document["id"]
     resp = await client.patch(
-        f"/documents/{doc_id}/fields/khasra_number",
+        f"/api/v1/documents/{doc_id}/fields/khasra_number",
         headers={"Authorization": f"Bearer {field_officer_token}"},
         json={"value": "451/2"},
     )
@@ -249,7 +249,7 @@ async def test_patch_nonexistent_field(
 ):
     doc_id = seeded_document["id"]
     resp = await client.patch(
-        f"/documents/{doc_id}/fields/nonexistent_field",
+        f"/api/v1/documents/{doc_id}/fields/nonexistent_field",
         headers={"Authorization": f"Bearer {verifier_token}"},
         json={"value": "anything"},
     )
@@ -267,7 +267,7 @@ async def test_verify_blocked_by_flagged_fields(
     """Verify must return 422 while any field is still flagged."""
     doc_id = seeded_document["id"]
     resp = await client.post(
-        f"/documents/{doc_id}/verify",
+        f"/api/v1/documents/{doc_id}/verify",
         headers={"Authorization": f"Bearer {verifier_token}"},
     )
     assert resp.status_code == 422
@@ -283,7 +283,7 @@ async def test_verify_success_after_clearing_flags(
 
     # Clear the one flagged field
     patch_resp = await client.patch(
-        f"/documents/{doc_id}/fields/khasra_number",
+        f"/api/v1/documents/{doc_id}/fields/khasra_number",
         headers={"Authorization": f"Bearer {verifier_token}"},
         json={"value": "451/2"},
     )
@@ -291,7 +291,7 @@ async def test_verify_success_after_clearing_flags(
 
     # Now verify
     verify_resp = await client.post(
-        f"/documents/{doc_id}/verify",
+        f"/api/v1/documents/{doc_id}/verify",
         headers={"Authorization": f"Bearer {verifier_token}"},
     )
     assert verify_resp.status_code == 200
@@ -307,16 +307,16 @@ async def test_verify_idempotency_rejected(
 
     # Clear flag then verify
     await client.patch(
-        f"/documents/{doc_id}/fields/khasra_number",
+        f"/api/v1/documents/{doc_id}/fields/khasra_number",
         headers={"Authorization": f"Bearer {verifier_token}"},
         json={"value": "451/2"},
     )
-    await client.post(f"/documents/{doc_id}/verify",
+    await client.post(f"/api/v1/documents/{doc_id}/verify",
                       headers={"Authorization": f"Bearer {verifier_token}"})
 
     # Second verify attempt
     resp = await client.post(
-        f"/documents/{doc_id}/verify",
+        f"/api/v1/documents/{doc_id}/verify",
         headers={"Authorization": f"Bearer {verifier_token}"},
     )
     assert resp.status_code == 409
@@ -328,7 +328,7 @@ async def test_verify_forbidden_for_officer(
 ):
     doc_id = seeded_document["id"]
     resp = await client.post(
-        f"/documents/{doc_id}/verify",
+        f"/api/v1/documents/{doc_id}/verify",
         headers={"Authorization": f"Bearer {field_officer_token}"},
     )
     assert resp.status_code == 403
@@ -342,11 +342,11 @@ async def _make_verified_doc(client, verifier_token, seeded_document):
     """Helper: clear flag and verify a seeded document, return doc_id."""
     doc_id = seeded_document["id"]
     await client.patch(
-        f"/documents/{doc_id}/fields/khasra_number",
+        f"/api/v1/documents/{doc_id}/fields/khasra_number",
         headers={"Authorization": f"Bearer {verifier_token}"},
         json={"value": "451/2"},
     )
-    await client.post(f"/documents/{doc_id}/verify",
+    await client.post(f"/api/v1/documents/{doc_id}/verify",
                       headers={"Authorization": f"Bearer {verifier_token}"})
     return doc_id
 
@@ -357,7 +357,7 @@ async def test_lrms_push_verified_doc(
 ):
     doc_id = await _make_verified_doc(client, verifier_token, seeded_document)
     resp = await client.post(
-        f"/integrations/lrms/push/{doc_id}",
+        f"/api/v1/integrations/lrms/push/{doc_id}",
         headers={"Authorization": f"Bearer {verifier_token}"},
     )
     assert resp.status_code == 200, resp.text
@@ -375,7 +375,7 @@ async def test_gis_push_verified_doc(
 ):
     doc_id = await _make_verified_doc(client, verifier_token, seeded_document)
     resp = await client.post(
-        f"/integrations/gis/push/{doc_id}",
+        f"/api/v1/integrations/gis/push/{doc_id}",
         headers={"Authorization": f"Bearer {verifier_token}"},
     )
     assert resp.status_code == 200, resp.text
@@ -392,8 +392,181 @@ async def test_lrms_push_unverified_doc_rejected(
     """Pushing a needs_review document must return 422."""
     doc_id = seeded_document["id"]   # still needs_review
     resp = await client.post(
-        f"/integrations/lrms/push/{doc_id}",
+        f"/api/v1/integrations/lrms/push/{doc_id}",
         headers={"Authorization": f"Bearer {verifier_token}"},
     )
     assert resp.status_code == 422
     assert "verified" in resp.json()["detail"].lower()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Object-Level Authorization (IDOR Protection) Tests
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_field_officer_cannot_access_other_users_document(
+    client: AsyncClient, verifier_token: str, admin_token: str
+):
+    """
+    Test object-level authorization:
+    1. Field officer A uploads a document
+    2. Field officer B attempts to fetch/list/audit/file it -> 403 Forbidden
+    3. Verifier and Admin can access it -> 200 OK
+    """
+    # Register Field Officer A
+    await client.post("/api/v1/auth/register", json={
+        "username": "officer_a",
+        "password": "Password123!",
+        "role": "field_officer",
+    })
+    resp_a = await client.post("/api/v1/auth/login", json={
+        "username": "officer_a",
+        "password": "Password123!",
+    })
+    token_a = resp_a.json()["access_token"]
+
+    # Register Field Officer B
+    await client.post("/api/v1/auth/register", json={
+        "username": "officer_b",
+        "password": "Password123!",
+        "role": "field_officer",
+    })
+    resp_b = await client.post("/api/v1/auth/login", json={
+        "username": "officer_b",
+        "password": "Password123!",
+    })
+    token_b = resp_b.json()["access_token"]
+
+    # Officer A uploads document
+    pdf_bytes = io.BytesIO(b"%PDF-1.4 mock content for officer a")
+    with patch("app.api.documents.process_document"):
+        upload_resp = await client.post(
+            "/api/v1/documents/upload",
+            headers={"Authorization": f"Bearer {token_a}"},
+            files={"file": ("deed_a.pdf", pdf_bytes, "application/pdf")},
+            data={"district": "Jaipur"},
+        )
+    assert upload_resp.status_code == 202
+    doc_id = upload_resp.json()["id"]
+
+    # 1. Officer A can access own document
+    resp = await client.get(f"/api/v1/documents/{doc_id}", headers={"Authorization": f"Bearer {token_a}"})
+    assert resp.status_code == 200
+    assert resp.json()["id"] == doc_id
+
+    # 2. Officer B attempts to fetch Officer A's document -> 403
+    resp = await client.get(f"/api/v1/documents/{doc_id}", headers={"Authorization": f"Bearer {token_b}"})
+    assert resp.status_code == 403
+    assert "access denied" in resp.json()["detail"].lower()
+
+    # Officer B attempts to fetch audit trail -> 403
+    resp = await client.get(f"/api/v1/documents/{doc_id}/audit", headers={"Authorization": f"Bearer {token_b}"})
+    assert resp.status_code == 403
+
+    # Officer B attempts to fetch duplicates -> 403
+    resp = await client.get(f"/api/v1/documents/{doc_id}/duplicates", headers={"Authorization": f"Bearer {token_b}"})
+    assert resp.status_code == 403
+
+    # Officer B attempts to fetch DILRMP export -> 403
+    resp = await client.get(f"/api/v1/documents/{doc_id}/export/dilrmp", headers={"Authorization": f"Bearer {token_b}"})
+    assert resp.status_code == 403
+
+    # Officer B attempts to fetch integrity -> 403
+    resp = await client.get(f"/api/v1/documents/{doc_id}/integrity", headers={"Authorization": f"Bearer {token_b}"})
+    assert resp.status_code == 403
+
+    # Officer B attempts to download file -> 403
+    resp = await client.get(f"/api/v1/documents/{doc_id}/file", headers={"Authorization": f"Bearer {token_b}"})
+    assert resp.status_code == 403
+
+    # Officer B attempts write operations (PATCH field, verify, reprocess) -> 403
+    patch_resp = await client.patch(
+        f"/api/v1/documents/{doc_id}/fields/owner_name",
+        headers={"Authorization": f"Bearer {token_b}"},
+        json={"value": "Malicious Modification"},
+    )
+    assert patch_resp.status_code == 403
+
+    verify_resp = await client.post(
+        f"/api/v1/documents/{doc_id}/verify",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert verify_resp.status_code == 403
+
+    reprocess_resp = await client.post(
+        f"/api/v1/documents/{doc_id}/reprocess",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert reprocess_resp.status_code == 403
+
+    # Officer B lists documents -> document is filtered out of the list
+    list_resp = await client.get("/api/v1/documents", headers={"Authorization": f"Bearer {token_b}"})
+    assert list_resp.status_code == 200
+    items = list_resp.json()["items"]
+    assert all(item["id"] != doc_id for item in items)
+
+    # 3. Verifier can access Officer A's document -> 200
+    resp = await client.get(f"/api/v1/documents/{doc_id}", headers={"Authorization": f"Bearer {verifier_token}"})
+    assert resp.status_code == 200
+
+    # 4. Admin can access Officer A's document -> 200
+    resp = await client.get(f"/api/v1/documents/{doc_id}", headers={"Authorization": f"Bearer {admin_token}"})
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_dashboard_stats_scoped_to_field_officer(
+    client: AsyncClient, admin_token: str
+):
+    """
+    Test dashboard scoping:
+    - Officer A uploads 1 document
+    - Officer B uploads 0 documents
+    - Officer B gets total_documents=0 in /dashboard/stats
+    - Admin gets system-wide total_documents >= 1 in /dashboard/stats
+    """
+    # Register Officer A
+    await client.post("/api/v1/auth/register", json={
+        "username": "dash_officer_a",
+        "password": "Password123!",
+        "role": "field_officer",
+    })
+    resp_a = await client.post("/api/v1/auth/login", json={
+        "username": "dash_officer_a",
+        "password": "Password123!",
+    })
+    token_a = resp_a.json()["access_token"]
+
+    # Register Officer B
+    await client.post("/api/v1/auth/register", json={
+        "username": "dash_officer_b",
+        "password": "Password123!",
+        "role": "field_officer",
+    })
+    resp_b = await client.post("/api/v1/auth/login", json={
+        "username": "dash_officer_b",
+        "password": "Password123!",
+    })
+    token_b = resp_b.json()["access_token"]
+
+    # Officer A uploads document
+    with patch("app.api.documents.process_document"):
+        await client.post(
+            "/api/v1/documents/upload",
+            headers={"Authorization": f"Bearer {token_a}"},
+            files={"file": ("deed_dash.pdf", io.BytesIO(b"%PDF-1.4 content"), "application/pdf")},
+            data={"district": "Jaipur"},
+        )
+
+    # Officer A stats: total_documents == 1
+    stats_a = (await client.get("/api/v1/dashboard/stats", headers={"Authorization": f"Bearer {token_a}"})).json()
+    assert stats_a["total_documents"] == 1
+
+    # Officer B stats: total_documents == 0 (does not see Officer A's docs)
+    stats_b = (await client.get("/api/v1/dashboard/stats", headers={"Authorization": f"Bearer {token_b}"})).json()
+    assert stats_b["total_documents"] == 0
+
+    # Admin stats: sees system-wide total
+    stats_admin = (await client.get("/api/v1/dashboard/stats", headers={"Authorization": f"Bearer {admin_token}"})).json()
+    assert stats_admin["total_documents"] >= 1
+

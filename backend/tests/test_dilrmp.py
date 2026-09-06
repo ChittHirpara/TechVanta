@@ -64,10 +64,10 @@ def test_compute_file_sha256():
 async def test_dilrmp_export_endpoint(
     client: AsyncClient, admin_token: str, seeded_document: dict
 ):
-    """GET /documents/{id}/export/dilrmp should return standard DILRMP 2.0 payload with ULPIN."""
+    """GET /api/v1/documents/{id}/export/dilrmp should return standard DILRMP 2.0 payload with ULPIN."""
     doc_id = seeded_document["id"]
     resp = await client.get(
-        f"/documents/{doc_id}/export/dilrmp",
+        f"/api/v1/documents/{doc_id}/export/dilrmp",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200, resp.text
@@ -83,10 +83,10 @@ async def test_dilrmp_export_endpoint(
 async def test_document_integrity_endpoint(
     client: AsyncClient, admin_token: str, seeded_document: dict
 ):
-    """GET /documents/{id}/integrity should check cryptographic seal."""
+    """GET /api/v1/documents/{id}/integrity should check cryptographic seal."""
     doc_id = seeded_document["id"]
     resp = await client.get(
-        f"/documents/{doc_id}/integrity",
+        f"/api/v1/documents/{doc_id}/integrity",
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200, resp.text

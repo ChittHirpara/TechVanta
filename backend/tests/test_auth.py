@@ -10,7 +10,7 @@ from httpx import AsyncClient
 
 @pytest.mark.asyncio
 async def test_register_success(client: AsyncClient):
-    resp = await client.post("/auth/register", json={
+    resp = await client.post("/api/v1/auth/register", json={
         "username": "newuser",
         "password": "password99",
         "role": "field_officer",
@@ -25,7 +25,7 @@ async def test_register_success(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_register_default_role(client: AsyncClient):
-    resp = await client.post("/auth/register", json={
+    resp = await client.post("/api/v1/auth/register", json={
         "username": "defaultrole",
         "password": "password99",
     })
@@ -35,7 +35,7 @@ async def test_register_default_role(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_register_admin_role(client: AsyncClient):
-    resp = await client.post("/auth/register", json={
+    resp = await client.post("/api/v1/auth/register", json={
         "username": "myadmin",
         "password": "adminpass1",
         "role": "admin",
@@ -47,8 +47,8 @@ async def test_register_admin_role(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_register_duplicate_username(client: AsyncClient):
     payload = {"username": "dupuser", "password": "password99", "role": "verifier"}
-    r1 = await client.post("/auth/register", json=payload)
-    r2 = await client.post("/auth/register", json=payload)
+    r1 = await client.post("/api/v1/auth/register", json=payload)
+    r2 = await client.post("/api/v1/auth/register", json=payload)
     assert r1.status_code == 201
     assert r2.status_code == 409
     assert "taken" in r2.json()["detail"].lower()
@@ -56,7 +56,7 @@ async def test_register_duplicate_username(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_register_short_password(client: AsyncClient):
-    resp = await client.post("/auth/register", json={
+    resp = await client.post("/api/v1/auth/register", json={
         "username": "shortpw",
         "password": "abc",       # less than 8 chars
         "role": "field_officer",
@@ -66,12 +66,12 @@ async def test_register_short_password(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_login_success(client: AsyncClient):
-    await client.post("/auth/register", json={
+    await client.post("/api/v1/auth/register", json={
         "username": "logintest",
         "password": "loginpass1",
         "role": "verifier",
     })
-    resp = await client.post("/auth/login", json={
+    resp = await client.post("/api/v1/auth/login", json={
         "username": "logintest",
         "password": "loginpass1",
     })
@@ -84,12 +84,12 @@ async def test_login_success(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient):
-    await client.post("/auth/register", json={
+    await client.post("/api/v1/auth/register", json={
         "username": "wrongpw",
         "password": "correct99",
         "role": "field_officer",
     })
-    resp = await client.post("/auth/login", json={
+    resp = await client.post("/api/v1/auth/login", json={
         "username": "wrongpw",
         "password": "badpassword",
     })
@@ -98,7 +98,7 @@ async def test_login_wrong_password(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_login_unknown_user(client: AsyncClient):
-    resp = await client.post("/auth/login", json={
+    resp = await client.post("/api/v1/auth/login", json={
         "username": "ghost",
         "password": "doesnotmatter",
     })
@@ -107,7 +107,7 @@ async def test_login_unknown_user(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_me_returns_current_user(client: AsyncClient, admin_token: str):
-    resp = await client.get("/auth/me",
+    resp = await client.get("/api/v1/auth/me",
                             headers={"Authorization": f"Bearer {admin_token}"})
     assert resp.status_code == 200
     body = resp.json()
@@ -117,13 +117,13 @@ async def test_me_returns_current_user(client: AsyncClient, admin_token: str):
 
 @pytest.mark.asyncio
 async def test_me_without_token(client: AsyncClient):
-    resp = await client.get("/auth/me")
+    resp = await client.get("/api/v1/auth/me")
     assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_me_with_invalid_token(client: AsyncClient):
-    resp = await client.get("/auth/me",
+    resp = await client.get("/api/v1/auth/me",
                             headers={"Authorization": "Bearer this.is.not.valid"})
     assert resp.status_code == 401
 
@@ -133,12 +133,12 @@ async def test_jwt_contains_role(client: AsyncClient):
     """Decode JWT without verifying signature and check role claim is present."""
     import base64, json as _json
 
-    await client.post("/auth/register", json={
+    await client.post("/api/v1/auth/register", json={
         "username": "rolecheck",
         "password": "rolecheck9",
         "role": "verifier",
     })
-    resp = await client.post("/auth/login", json={
+    resp = await client.post("/api/v1/auth/login", json={
         "username": "rolecheck",
         "password": "rolecheck9",
     })

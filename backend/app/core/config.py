@@ -1,4 +1,7 @@
 from functools import lru_cache
+from typing import Any
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +18,22 @@ class Settings(BaseSettings):
     # ── App ──────────────────────────────────────────────────────────────────
     app_env: str = "development"
     debug: bool = False
+
+    # ── CORS ─────────────────────────────────────────────────────────────────
+    # Comma-separated list of allowed origins or list of strings
+    allowed_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8000",
+    ]
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            return [orig.strip() for orig in v.split(",") if orig.strip()]
+        return v
 
     # ── Database ─────────────────────────────────────────────────────────────
     db_url: str  # e.g. postgresql+asyncpg://user:pass@host:port/db
