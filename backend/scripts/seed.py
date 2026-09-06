@@ -110,7 +110,7 @@ DOCUMENTS = [
         "fields": {
             "owner_name":          ("Priya Sharma Devi",        0.88, False),
             "survey_number":       ("12/3A",                    0.72, False),
-            "khasra_number":       ("22l/1",   # OCR error     0.38, True),
+            "khasra_number":       ("22l/1", 0.38, True),   # OCR error
             "khata_number":        (None,                       0.20, True),   # not found
             "plot_area":           ("1.45 acres",               0.81, False),
             "village":             ("Bhinmal",                  0.90, False),
@@ -217,7 +217,8 @@ async def seed(db_url: str, reset: bool, quiet: bool) -> None:
                 "processing":   cyan("processing"),
             }.get(d["status"], d["status"])
 
-            log(f"\n  {bold(f'  Doc {i}: {d[\"filename\"]}')}  [{status_col}]")
+            fn = d["filename"]
+            log(f"\n  {bold(f'  Doc {i}: {fn}')}  [{status_col}]")
 
             # Extracted fields
             fields_dict: dict = d.get("fields", {})
