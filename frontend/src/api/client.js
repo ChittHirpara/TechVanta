@@ -142,6 +142,8 @@ export const documentsApi = {
     }),
   getFileUrl: (id, token) =>
     `${API_BASE}/documents/${id}/file?token=${encodeURIComponent(token || getStoredToken() || '')}`,
+  getCertificateUrl: (id, token) =>
+    `${API_BASE}/documents/${id}/certificate?token=${encodeURIComponent(token || getStoredToken() || '')}`,
 };
 
 export const integrationsApi = {

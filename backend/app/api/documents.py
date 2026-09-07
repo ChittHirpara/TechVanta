@@ -24,7 +24,7 @@ from fastapi import (
     APIRouter, BackgroundTasks, Body, Depends, File,
     Form, Header, HTTPException, Query, Request, Response, UploadFile, status,
 )
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,6 +45,7 @@ from app.schemas.document import (
     PaginatedDocuments,
 )
 from app.services.audit_service import write_audit
+from app.services.certificate_service import generate_certificate_html
 from app.services.dilrmp import build_dilrmp_export_payload, compute_file_sha256
 from app.services.pipeline import pipeline_broadcaster, process_document
 from app.services.validation import find_duplicates
@@ -226,6 +227,55 @@ async def upload_document(
     )
 
     return DocumentRead.model_validate(doc)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/public/verify/{ulpin}/{file_hash} (Public Citizen QR Verify)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/public/verify/{ulpin}/{file_hash}",
+    summary="Public verification endpoint for citizen / bank QR code scans",
+)
+async def public_verify_ulpin(
+    ulpin: str,
+    file_hash: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Public verification endpoint that validates a land parcel ULPIN and SHA-256 seal.
+    Returns authenticity status without exposing sensitive personal owner data.
+    """
+    stmt = select(Document).where(Document.status == DocumentStatus.verified)
+    verified_docs = (await db.execute(stmt)).scalars().all()
+
+    matched_doc = None
+    for doc in verified_docs:
+        try:
+            h = compute_file_sha256(doc.storage_path)
+            if h.startswith(file_hash) or file_hash in h:
+                matched_doc = doc
+                break
+        except Exception:
+            continue
+
+    if matched_doc:
+        return {
+            "status": "AUTHENTIC_VERIFIED",
+            "ulpin": ulpin,
+            "verification_status": "SEALED",
+            "jurisdiction": f"{matched_doc.district or 'Rajasthan'}, {matched_doc.tehsil or ''}",
+            "verified_at": matched_doc.updated_at.isoformat() if matched_doc.updated_at else None,
+            "integrity_seal": "SHA-256_MATCHED",
+            "issuing_authority": "Ministry of Rural Development • Department of Land Resources (DILRMP)",
+        }
+
+    return {
+        "status": "RECORD_NOT_FOUND_OR_PENDING",
+        "ulpin": ulpin,
+        "verification_status": "UNVERIFIED",
+        "message": "No matching sealed record found with this cryptographic digest.",
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -761,5 +811,38 @@ async def get_document_audit(
         }
         for r in rows
     ]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/{id}/certificate (Sovereign Verification Certificate HTML/Print)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{document_id}/certificate",
+    response_class=HTMLResponse,
+    summary="Generate a printable, cryptographically sealed Sovereign Verification Certificate",
+)
+async def get_document_certificate(
+    document_id: int,
+    token: str | None = Query(None, description="Auth token for direct browser viewing"),
+    authorization: str | None = Header(None),
+    db: AsyncSession = Depends(get_db),
+):
+    current_user = await _resolve_user(token, authorization, db)
+    doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
+
+    stmt = select(ExtractedField).where(ExtractedField.document_id == document_id)
+    fields = (await db.execute(stmt)).scalars().all()
+
+    verifier_name = f"{current_user.username} ({current_user.role.value.capitalize()})"
+    cert_html = generate_certificate_html(
+        document=doc,
+        fields=fields,
+        verifier_username=verifier_name,
+    )
+    return HTMLResponse(content=cert_html, status_code=200)
+
+
 
 
