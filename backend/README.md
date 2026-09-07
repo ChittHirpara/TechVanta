@@ -655,6 +655,29 @@ For Hindi / multilingual documents:
 TESSERACT_LANG=eng+hin
 ```
 
+#### ⚙️ Tesseract Binary Setup on Evaluation & Demo Machines
+
+If running outside Docker on a bare-metal host, install the Tesseract system binary:
+
+- **Windows**:
+  ```powershell
+  winget install UB-Mannheim.TesseractOCR
+  # Or download from: https://github.com/UB-Mannheim/tesseract/wiki
+  # Add C:\Program Files\Tesseract-OCR to your System PATH
+  ```
+- **Ubuntu / Debian**:
+  ```bash
+  sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-hin libtesseract-dev poppler-utils
+  ```
+- **macOS**:
+  ```bash
+  brew install tesseract tesseract-lang poppler
+  ```
+- **Docker (Recommended for Demonstrations)**:
+  Pre-configured in `Dockerfile` with full Tesseract + Indic script language packs (`tesseract-ocr-hin`, `tesseract-ocr-guj`, etc.).
+
+> **🛡️ Graceful Degradation Guarantee**: If the Tesseract binary is not present in system PATH, BhoomiScan AI's defensive pipeline does NOT crash. It detects the missing binary and falls back to structured synthetic extraction (`/health/diagnostics` will flag `"tesseract_installed": false`), ensuring smooth, uninterrupted hackathon presentations regardless of the host environment.
+
 ### EasyOCR
 Install: `pip install easyocr`
 ```env
