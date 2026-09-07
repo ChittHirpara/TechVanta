@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # ── App ──────────────────────────────────────────────────────────────────
     app_env: str = "development"
     debug: bool = False
+    enable_multilingual_ui: bool = False
 
     # ── CORS ─────────────────────────────────────────────────────────────────
     # Comma-separated list of allowed origins or list of strings
@@ -68,6 +69,13 @@ class Settings(BaseSettings):
     # ── Validation ───────────────────────────────────────────────────────────
     # Combined confidence below this → ExtractedField.is_flagged = True
     review_threshold: float = 0.75
+    # Per-field confidence threshold overrides (checked before global review_threshold)
+    field_confidence_thresholds: dict[str, float] = {
+        "khasra_number": 0.85,
+        "survey_number": 0.85,
+        "khata_number": 0.80,
+        "plot_area": 0.80,
+    }
     # rapidfuzz similarity threshold (0-100) for duplicate detection
     fuzzy_threshold: float = 85.0
     # Weight given to OCR confidence vs LLM extraction confidence (must sum to 1)

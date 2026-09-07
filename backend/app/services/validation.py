@@ -494,13 +494,17 @@ def compute_confidence(
     return round(max(0.0, min(1.0, score)), 4)
 
 
-def should_flag(combined_confidence: float) -> bool:
+def should_flag(combined_confidence: float, field_name: str | None = None) -> bool:
     """
     Return True if the field should be flagged for manual review.
 
-    Uses ``REVIEW_THRESHOLD`` from config (default 0.75).
+    Checks per-field threshold from config first, falling back to global REVIEW_THRESHOLD.
     """
-    return combined_confidence < REVIEW_THRESHOLD()
+    cfg = _cfg()
+    threshold = REVIEW_THRESHOLD()
+    if field_name and hasattr(cfg, "field_confidence_thresholds") and isinstance(cfg.field_confidence_thresholds, dict):
+        threshold = cfg.field_confidence_thresholds.get(field_name, threshold)
+    return combined_confidence < threshold
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -563,7 +567,7 @@ def build_field_reports(
         ocr_conf  = ocr_confidences.get(fname, 0.5)      # default mid-range if unknown
         ext_conf  = extraction_confidences.get(fname, "low")
         combined  = compute_confidence(ocr_conf, ext_conf)
-        flagged   = should_flag(combined)
+        flagged   = should_flag(combined, field_name=fname)
 
         reports.append(FieldReport(
             field_name=fname,
