@@ -32,36 +32,39 @@ Across India's revenue departments, over **140 million legacy land records** (Ja
 ```mermaid
 flowchart TD
     subgraph ClientLayer ["Client & Ingestion Layer"]
-        A[Uploaded Land Record<br/>PDF / TIFF / JPEG / PNG] --> B[FastAPI Gateway<br/>/api/v1/documents/upload]
-        B --> C[File Validation & Rate Limiter<br/>Magic Bytes Check + SHA-256]
+        A["Uploaded Land Record<br/>PDF / TIFF / JPEG / PNG"] --> B["FastAPI Gateway<br/>/api/v1/documents/upload"]
+        B --> C["File Validation & Rate Limiter<br/>Magic Bytes Check + SHA-256"]
     end
 
     subgraph BackgroundWorker ["Async Processing Pipeline"]
-        C --> D[Background Task Queue]
-        D -->|Step 1: Vision| E[Multimodal OCR Engine<br/>EasyOCR / Tesseract Cascade]
-        E -->|Bounding Boxes + Text| F[LLM Extraction Engine<br/>GPT-4o / Gemini / Local Ollama]
-        F -->|Structured JSON| G[Validation & Scoring Engine]
+        C --> D["Background Task Queue"]
+        D -->|Step 1: Vision| E["Multimodal OCR Engine<br/>EasyOCR / Tesseract Cascade"]
+        E -->|Bounding Boxes + Text| F["LLM Extraction Engine<br/>GPT-4o / Gemini / Local Ollama"]
+        F -->|Structured JSON| G["Validation & Scoring Engine"]
         
-        G --> H1[Rule Validator<br/>Regex Khasra/Survey Checks]
-        G --> H2[Composite Confidence Matrix<br/>OCR * 0.4 + LLM * 0.6]
-        G --> H3[RapidFuzz Duplicate Engine<br/>Token-Set Ratio vs Registry]
+        G --> H1["Rule Validator<br/>Regex Khasra/Survey Checks"]
+        G --> H2["Composite Confidence Matrix<br/>OCR * 0.4 + LLM * 0.6"]
+        G --> H3["RapidFuzz Duplicate Engine<br/>Token-Set Ratio vs Registry"]
         
-        H1 & H2 & H3 --> I{Confidence >= 75%<br/>& No Violations?}
-        I -->|Yes| J[Status: VERIFIED-READY]
-        I -->|No / Flagged| K[Status: NEEDS-REVIEW]
+        H1 --> I{"Confidence >= 75%<br/>& No Violations?"}
+        H2 --> I
+        H3 --> I
+        I -->|Yes| J["Status: VERIFIED-READY"]
+        I -->|No / Flagged| K["Status: NEEDS-REVIEW"]
     end
 
     subgraph RealtimeStream ["Real-time Observability"]
-        D -.->|SSE Events| L[Live SSE Event Channel<br/>/api/v1/documents/stream/{id}]
-        L -.-> M[Live Verifier Dashboard]
+        D -.->|SSE Events| L["Live SSE Event Channel<br/>/api/v1/documents/:id/events"]
+        L -.-> M["Live Verifier Dashboard"]
     end
 
     subgraph SovereignGovernance ["Governance & Compliance"]
-        J & K --> N[PostgreSQL / SQLite Database]
-        N --> O[SHA-256 Audit Trail & Chain of Custody]
-        N --> P[DILRMP National Compliance Engine]
-        P --> Q[Government LRMS Gateway<br/>State Land Registry Push]
-        P --> R[GIS BhuNaksha Adapter<br/>Geo-Referenced Boundary Sync]
+        J --> N["PostgreSQL / SQLite Database"]
+        K --> N
+        N --> O["SHA-256 Audit Trail & Chain of Custody"]
+        N --> P["DILRMP National Compliance Engine"]
+        P --> Q["Government LRMS Gateway<br/>State Land Registry Push"]
+        P --> R["GIS BhuNaksha Adapter<br/>Geo-Referenced Boundary Sync"]
     end
 
     style ClientLayer fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#fff
