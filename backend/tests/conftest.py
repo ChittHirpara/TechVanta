@@ -12,9 +12,14 @@ import asyncio
 import os
 
 # ── Inject minimal env vars BEFORE any app import ────────────────────────────
-os.environ.setdefault("JWT_SECRET",   "pytest-secret-do-not-use-in-prod")
-os.environ.setdefault("DB_URL",       "sqlite+aiosqlite:///:memory:")
-os.environ.setdefault("LLM_API_KEY",  "sk-test-fake-key")
+os.environ.setdefault("JWT_SECRET",    "pytest-secret-do-not-use-in-prod")
+os.environ.setdefault("DB_URL",        "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("LLM_API_KEY",   "sk-test-fake-key")
+# Disable rate limiting during tests: set very high limits so the test suite
+# can call /auth/login and /documents/upload many times without hitting 429s.
+os.environ.setdefault("RATE_LIMIT_LOGIN",  "10000/minute")
+os.environ.setdefault("RATE_LIMIT_UPLOAD", "10000/minute")
+os.environ.setdefault("RATE_LIMIT_API",    "10000/minute")
 
 # ── Standard imports (after env setup) ───────────────────────────────────────
 import pytest
@@ -29,6 +34,30 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401 – registers all ORM models with Base.metadata
 from app.db.session import Base, get_db
 from app.main import app
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Rate limiter reset fixture
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    """
+    Reset the slowapi in-memory counter storage before every test.
+
+    Without this, tests accumulate login/upload calls across the session and
+    eventually hit the per-IP rate limits (e.g. 10 logins/minute) causing
+    spurious 429 failures in fixture setup.
+
+    MemoryStorage.reset() clears all internal dicts (storage, expirations,
+    events, locks) giving each test a fresh slate while keeping rate limiting
+    code fully exercised.
+    """
+    from app.core.limiter import limiter
+    try:
+        limiter._storage.reset()   # type: ignore[attr-defined]
+    except AttributeError:
+        # Redis backend — don't flush in tests (shouldn't be configured in CI)
+        pass
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Engine / session fixtures

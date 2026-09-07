@@ -232,14 +232,140 @@ class TesseractProvider(OCRProvider):
 # ---------------------------------------------------------------------------
 
 class EasyOCRProvider(OCRProvider):
-    """Placeholder – implement when EasyOCR is added to requirements."""
+    """
+    OCR via EasyOCR (deep-learning CRAFT text detection).
+
+    Advantages over Tesseract:
+    - Better handling of degraded, skewed, and low-contrast documents
+    - Multi-language support without separate language pack installation
+    - Superior performance on handwritten and mixed-script documents
+
+    Requirements:
+        pip install easyocr
+
+    If ``easyocr`` is not installed, this provider transparently falls back
+    to ``TesseractProvider`` with a logged warning (no crash).
+    """
+
     name = "easyocr"
 
+    def __init__(self, lang: list[str] | None = None, pdf_dpi: int = 300) -> None:
+        """
+        Args:
+            lang:    List of EasyOCR language codes, e.g. ``["en", "hi"]``.
+                     Defaults to ``["en"]`` (English).
+            pdf_dpi: Resolution for PDF→image conversion.
+        """
+        self.lang = lang or ["en"]
+        self.pdf_dpi = pdf_dpi
+        self._reader = None   # lazy-initialised on first use
+        self._fallback: TesseractProvider | None = None
+
+    def _get_reader(self):
+        """
+        Lazily initialise the EasyOCR reader.
+
+        If the ``easyocr`` package is not installed, return None and let the
+        caller switch to the Tesseract fallback.
+        """
+        if self._reader is not None:
+            return self._reader
+        try:
+            import easyocr  # noqa: PLC0415 – intentional lazy import
+            self._reader = easyocr.Reader(
+                self.lang,
+                gpu=False,         # safe default; set to True if CUDA is available
+                verbose=False,
+            )
+            log.info("[easyocr] Reader initialised for languages: %s", self.lang)
+        except ImportError:
+            log.warning(
+                "[easyocr] 'easyocr' package not installed. "
+                "Falling back to TesseractProvider. "
+                "Install it with: pip install easyocr"
+            )
+        return self._reader
+
+    def _get_fallback(self) -> TesseractProvider:
+        """Return a cached Tesseract fallback instance."""
+        if self._fallback is None:
+            self._fallback = TesseractProvider(pdf_dpi=self.pdf_dpi)
+        return self._fallback
+
+    def _ocr_image_easyocr(self, image) -> tuple[str, list[WordConfidence]]:
+        """Run EasyOCR on a single PIL Image."""
+        import numpy as np
+        reader = self._get_reader()
+        if reader is None:
+            # Package not installed — delegate to Tesseract
+            return self._get_fallback()._ocr_image(image)
+
+        img_array = np.array(image.convert("RGB"))
+        results = reader.readtext(img_array, detail=1)
+
+        words: list[WordConfidence] = []
+        text_parts: list[str] = []
+
+        for (_bbox, text, conf) in results:
+            text = str(text).strip()
+            if text:
+                words.append(WordConfidence(word=text, confidence=float(conf)))
+                text_parts.append(text)
+
+        raw_text = " ".join(text_parts)
+        return raw_text, words
+
     def _extract_sync(self, file_path: Path) -> OCRResult:
-        raise NotImplementedError(
-            "EasyOCRProvider is not yet implemented. "
-            "Set OCR_PROVIDER=tesseract in your .env."
-        )
+        suffix = file_path.suffix.lower()
+
+        if suffix in _PDF_SUFFIXES:
+            from pdf2image import convert_from_path
+
+            log.info("[easyocr] Converting PDF '%s' to images at %d DPI …", file_path.name, self.pdf_dpi)
+            pages = convert_from_path(str(file_path), dpi=self.pdf_dpi)
+            all_text_parts: list[str] = []
+            all_words: list[WordConfidence] = []
+
+            for i, page_img in enumerate(pages, start=1):
+                log.debug("[easyocr] OCR-ing page %d/%d", i, len(pages))
+                page_text, page_words = self._ocr_image_easyocr(page_img)
+                all_text_parts.append(f"[Page {i}]\n{page_text}")
+                all_words.extend(page_words)
+
+            raw_text = "\n\n".join(all_text_parts)
+            avg_conf = (
+                sum(w.confidence for w in all_words) / len(all_words)
+                if all_words else 0.0
+            )
+            return OCRResult(
+                raw_text=raw_text,
+                avg_confidence=round(avg_conf, 4),
+                word_confidences=all_words,
+                page_count=len(pages),
+                provider=self.name,
+            )
+
+        elif suffix in _IMAGE_SUFFIXES:
+            from PIL import Image
+
+            with Image.open(file_path) as img:
+                text, words = self._ocr_image_easyocr(img)
+
+            avg_conf = (
+                sum(w.confidence for w in words) / len(words) if words else 0.0
+            )
+            return OCRResult(
+                raw_text=text,
+                avg_confidence=round(avg_conf, 4),
+                word_confidences=words,
+                page_count=1,
+                provider=self.name,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported file type '{suffix}'. "
+                f"Supported: {_IMAGE_SUFFIXES | _PDF_SUFFIXES}"
+            )
 
 
 class TrOCRProvider(OCRProvider):
@@ -295,5 +421,17 @@ def get_ocr_provider() -> OCRProvider:
     # Provider-specific construction args
     if provider_key == "tesseract":
         return TesseractProvider(lang=cfg.tesseract_lang, pdf_dpi=cfg.pdf_dpi)
+
+    if provider_key == "easyocr":
+        # Convert Tesseract lang string ("eng+hin") → EasyOCR list (["en", "hi"])
+        # EasyOCR uses 2-letter ISO codes; map common Tesseract codes automatically
+        _TESS_TO_EASYOCR: dict[str, str] = {
+            "eng": "en", "hin": "hi", "guj": "gu", "tam": "ta",
+            "tel": "te", "ben": "bn", "kan": "kn", "mal": "ml",
+            "mar": "mr", "pan": "pa", "urd": "ur",
+        }
+        lang_parts = [p.strip() for p in cfg.tesseract_lang.split("+") if p.strip()]
+        easyocr_langs = [_TESS_TO_EASYOCR.get(p, p) for p in lang_parts]
+        return EasyOCRProvider(lang=easyocr_langs, pdf_dpi=cfg.pdf_dpi)
 
     return cls()

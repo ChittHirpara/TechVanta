@@ -1,9 +1,10 @@
 """Auth router – register, login, and /me endpoints."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
+from app.core.limiter import limiter
 from app.core.security import create_access_token, verify_password
 from app.db.session import get_db
 from app.models.user import User
@@ -57,7 +58,10 @@ async def register(
     response_model=TokenResponse,
     summary="Exchange credentials for a JWT access token",
 )
+@limiter.limit("10/minute")
 async def login(
+    request: Request,                   # required by slowapi for IP key extraction
+    response: Response,                 # required by slowapi for X-RateLimit-* headers
     payload: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:

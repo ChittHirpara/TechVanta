@@ -64,7 +64,7 @@ async def _load_verified_document(doc_id: int, db: AsyncSession) -> Document:
 
     if doc.status != DocumentStatus.verified:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"Document {doc_id} has status '{doc.status.value}'. "
                 "Only 'verified' documents may be pushed to external systems. "

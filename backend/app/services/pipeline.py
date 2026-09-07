@@ -184,7 +184,13 @@ async def _set_document_status(
     document_id: int,
     status: str,
 ) -> None:
-    """Update Document.status and bump updated_at via server-side now()."""
+    """
+    Update Document.status and explicitly bump updated_at via server-side now().
+
+    NOTE: We must set updated_at explicitly here because SQLAlchemy's
+    ``onupdate=func.now()`` only fires for ORM-level attribute changes,
+    NOT for raw ``session.execute(update(...).values(...))`` statements.
+    """
     from sqlalchemy import func, update
     from app.models.document import Document, DocumentStatus
 
@@ -192,7 +198,7 @@ async def _set_document_status(
     stmt = (
         update(Document)
         .where(Document.id == document_id)
-        .values(status=new_status)    # updated_at is handled by onupdate in the model
+        .values(status=new_status, updated_at=func.now())  # explicit bump — do NOT remove
     )
     await db.execute(stmt)
     await db.flush()

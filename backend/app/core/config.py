@@ -36,10 +36,14 @@ class Settings(BaseSettings):
         return v
 
     # ── Database ─────────────────────────────────────────────────────────────
-    db_url: str  # e.g. postgresql+asyncpg://user:pass@host:port/db
+    # Defaults to SQLite for zero-config local development.
+    # Override with a PostgreSQL URL for production:
+    #   postgresql+asyncpg://user:password@host:5432/land_records
+    db_url: str = "sqlite+aiosqlite:///./land_records.db"
 
     # ── JWT ──────────────────────────────────────────────────────────────────
-    jwt_secret: str
+    # IMPORTANT: always override JWT_SECRET in production via .env or env var!
+    jwt_secret: str = "dev-only-insecure-secret-CHANGE-IN-PRODUCTION"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
 
@@ -69,6 +73,19 @@ class Settings(BaseSettings):
     # Weight given to OCR confidence vs LLM extraction confidence (must sum to 1)
     ocr_confidence_weight: float = 0.40
     extraction_confidence_weight: float = 0.60
+
+    # ── Redis ─────────────────────────────────────────────────────────────────
+    # Optional Redis URL for rate limiting (and future caching/task queuing).
+    # Leave empty "" to use in-memory rate limiting (fine for single-process dev/test).
+    # Production example: redis://localhost:6379/0  or  redis://:password@host:6379/0
+    redis_url: str = ""
+
+    # ── Rate Limiting ─────────────────────────────────────────────────────────
+    # slowapi / limits format: "<count>/<period>"
+    # Examples: "30/minute", "5/second", "1000/hour"
+    rate_limit_upload: str = "30/minute"   # per-IP on POST /documents/upload
+    rate_limit_login: str = "10/minute"    # per-IP on POST /auth/login (brute-force guard)
+    rate_limit_api: str = "120/minute"     # per-IP global on all /api/v1/* routes
 
 
 @lru_cache

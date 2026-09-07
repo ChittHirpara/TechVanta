@@ -206,11 +206,24 @@ cp .env.example .env
 alembic upgrade head
 python scripts/seed.py
 
-# 6. Launch the server
+# 6. Launch the backend server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Option 2: Run with Docker Compose
+### Option 2: Run Dedicated React Verification Studio (Frontend)
+
+```bash
+cd TechVanta/frontend
+
+# 1. Install dependencies
+npm install
+
+# 2. Launch Vite dev server
+npm run dev
+# Opens on http://localhost:5173 (proxied to backend on port 8000)
+```
+
+### Option 3: Run with Docker Compose
 
 ```bash
 cd TechVanta/backend
@@ -221,11 +234,10 @@ docker-compose up --build -d
 
 ## 🌐 Interactive Interfaces & Documentation
 
-Once the server is running on `http://localhost:8000`:
-
 | Interface | URL | Description |
 | :--- | :--- | :--- |
-| 🖥️ **Live Verifier Studio** | [`http://localhost:8000/`](http://localhost:8000/) | Fully operational dashboard to upload, inspect, correct fields, and verify records. |
+| ⚛️ **React Verification Studio** | [`http://localhost:5173/`](http://localhost:5173/) | Modern dedicated React + Vite verification dashboard with live SSE streaming & dual viewer. |
+| 🖥️ **Integrated Single-Page UI** | [`http://localhost:8000/`](http://localhost:8000/) | Built-in standalone single-page verification interface served directly by FastAPI. |
 | 📑 **Interactive OpenAPI (Swagger)** | [`http://localhost:8000/docs`](http://localhost:8000/docs) | Complete Swagger UI with token authorization and test consoles. |
 | 📖 **ReDoc Documentation** | [`http://localhost:8000/redoc`](http://localhost:8000/redoc) | Clean, readable API documentation for integration partners. |
 | 🩺 **System Diagnostics** | [`http://localhost:8000/health/diagnostics`](http://localhost:8000/health/diagnostics) | Real-time JSON health check of DB, storage, and OCR engine. |

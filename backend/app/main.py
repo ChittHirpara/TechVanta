@@ -8,11 +8,15 @@ from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler as _slowapi_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import api_router
 from app.core.config import get_settings
+from app.core.limiter import limiter, rate_limit_exceeded_handler
 from app.db.session import get_db
 
 logger = logging.getLogger("app.main")
@@ -27,7 +31,16 @@ app = FastAPI(
     debug=settings.debug,
 )
 
+# ── Rate Limiter ──────────────────────────────────────────────────────────────
+# Attach limiter instance to app state (required by slowapi decorator resolution)
+app.state.limiter = limiter
+# Register 429 handler so rate-limit violations return clean JSON (not raw HTTP)
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+# Add SlowAPI middleware — intercepts responses to attach X-RateLimit-* headers
+app.add_middleware(SlowAPIMiddleware)
 
+
+# ── Global exception handler ──────────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch unhandled runtime errors, log server-side, and return sanitized 500."""
@@ -110,6 +123,17 @@ async def system_diagnostics(db: AsyncSession = Depends(get_db)) -> dict:
         "document_count": len(list(upload_dir.glob("*"))) if upload_dir.exists() else 0,
     }
 
+    # Check Redis connectivity if configured
+    redis_info: dict = {"configured": bool(settings.redis_url)}
+    if settings.redis_url:
+        try:
+            import redis as redis_lib
+            r = redis_lib.from_url(settings.redis_url, socket_connect_timeout=1)
+            r.ping()
+            redis_info["status"] = "HEALTHY"
+        except Exception as redis_exc:
+            redis_info["status"] = f"ERROR: {redis_exc}"
+
     return {
         "app_status": "ONLINE",
         "version": app.version,
@@ -124,5 +148,12 @@ async def system_diagnostics(db: AsyncSession = Depends(get_db)) -> dict:
             "temperature": settings.llm_temperature,
             "base_url": settings.llm_base_url or "api.openai.com",
         },
+        "rate_limiting": {
+            "upload_limit": settings.rate_limit_upload,
+            "login_limit": settings.rate_limit_login,
+            "api_limit": settings.rate_limit_api,
+            "backend": "redis" if settings.redis_url else "in-memory",
+        },
         "storage": storage_info,
+        **( {"redis": redis_info} if settings.redis_url else {} ),
     }

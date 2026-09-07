@@ -22,13 +22,14 @@ from pathlib import Path
 
 from fastapi import (
     APIRouter, BackgroundTasks, Body, Depends, File,
-    Form, Header, HTTPException, Query, UploadFile, status,
+    Form, Header, HTTPException, Query, Request, Response, UploadFile, status,
 )
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, require_role
+from app.core.limiter import limiter
 from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models.audit_trail import AuditTrail
@@ -51,8 +52,10 @@ from app.services.validation import find_duplicates
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
 # ── Config & Upload Hardening ──────────────────────────────────────────────────
-_UPLOAD_DIR = Path("uploads")
-_UPLOAD_DIR.mkdir(exist_ok=True)
+# Anchor uploads/ relative to THIS file's package root (backend/app/api/documents.py
+# → backend/uploads/) so it's CWD-independent regardless of where uvicorn starts.
+_UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
+_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 _ALLOWED_SUFFIXES = {".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif"}
 MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
 
@@ -107,7 +110,7 @@ def _save_upload(file: UploadFile) -> Path:
     if oversized:
         dest.unlink(missing_ok=True)
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=f"File size exceeds limit of {MAX_FILE_SIZE_BYTES // (1024 * 1024)}MB.",
         )
 
@@ -165,7 +168,10 @@ async def _get_field_or_404(
     status_code=status.HTTP_202_ACCEPTED,
     summary="Upload a land-record document and start async OCR + extraction",
 )
+@limiter.limit("30/minute")
 async def upload_document(
+    request: Request,                        # required by slowapi for IP key extraction
+    response: Response,                      # required by slowapi for X-RateLimit-* headers
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="PDF or image file"),
     district: str | None = Form(None),
@@ -374,11 +380,12 @@ async def patch_field(
     ).scalar_one()
 
     if doc.status == DocumentStatus.needs_review and remaining_flags == 0:
-        # All flags cleared — document is now ready to be explicitly verified
+        # All flags cleared — bump updated_at so the frontend knows a change happened.
+        # Document stays in needs_review until the verifier explicitly calls POST /verify.
         await db.execute(
             update(Document)
             .where(Document.id == document_id)
-            .values(status=DocumentStatus.needs_review)   # still needs final /verify call
+            .values(updated_at=func.now())  # explicit bump (onupdate doesn't fire on raw update())
         )
 
     await db.commit()
@@ -426,18 +433,18 @@ async def verify_document(
 
     if flagged_count > 0:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"{flagged_count} field(s) are still flagged for review. "
                 "Correct them via PATCH /documents/{id}/fields/{field_name} first."
             ),
         )
 
-    # Promote status
+    # Promote status + bump updated_at (onupdate doesn't fire on raw update() calls)
     await db.execute(
         update(Document)
         .where(Document.id == document_id)
-        .values(status=DocumentStatus.verified)
+        .values(status=DocumentStatus.verified, updated_at=func.now())
     )
 
     await write_audit(
@@ -501,13 +508,16 @@ async def reprocess_document(
 )
 async def stream_document_events(
     document_id: int,
+    token: str | None = Query(None, description="Auth token for direct EventSource stream"),
+    authorization: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Streams live step-by-step progress events for document processing.
     Emits JSON payloads under `data:` with step name, percent, status, and message.
+    Supports both Authorization header and ?token= query parameter for browser EventSource.
     """
+    current_user = await _resolve_user(token, authorization, db)
     doc = await _get_doc_or_404(document_id, db)
     require_document_access(doc, current_user)
 

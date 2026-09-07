@@ -46,6 +46,14 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# Ensure UTF-8 output on Windows consoles
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # ── Minimal env defaults for standalone execution ─────────────────────────────
 os.environ.setdefault("JWT_SECRET",  "seed-script-local-secret")
 os.environ.setdefault("LLM_API_KEY", "sk-seed-fake")
@@ -198,10 +206,18 @@ async def seed(db_url: str, reset: bool, quiet: bool) -> None:
 
         # ── Documents + fields ────────────────────────────────────────────────
         log(f"\n  {bold('Creating documents …')}")
+        demo_dir = PROJECT_ROOT / "uploads" / "demo"
+        demo_dir.mkdir(parents=True, exist_ok=True)
+
         for i, d in enumerate(DOCUMENTS, start=1):
+            demo_file = demo_dir / d["filename"]
+            if not demo_file.exists():
+                demo_file.write_text(f"%PDF-1.4 Mock demo land deed content for {d['filename']}", encoding="utf-8")
+            actual_storage_path = str(demo_file.resolve())
+
             doc = Document(
                 filename=d["filename"],
-                storage_path=d["storage_path"],
+                storage_path=actual_storage_path,
                 uploaded_by=admin.id,
                 status=DocumentStatus(d["status"]),
                 district=d.get("district"),
@@ -343,7 +359,7 @@ if __name__ == "__main__":
     if not db_url:
         from dotenv import load_dotenv
         load_dotenv(PROJECT_ROOT / ".env", override=False)
-        db_url = os.environ.get("DB_URL", "")
+        db_url = os.environ.get("DB_URL", "sqlite+aiosqlite:///./land_records.db")
 
     if not db_url:
         print(red("Error: No database URL. Set DB_URL in .env or pass --db-url."))
