@@ -291,3 +291,16 @@ def test_build_field_reports_violations_attached():
     area_report  = next(r for r in reports if r.field_name == "plot_area")
     assert len(owner_report.violations) > 0
     assert len(area_report.violations) > 0
+
+
+def test_should_flag_per_field_override():
+    # khasra_number has a higher threshold (0.85). A confidence of 0.80 passes global 0.75 but fails khasra 0.85
+    assert should_flag(0.80, field_name="khasra_number") is True
+    assert should_flag(0.88, field_name="khasra_number") is False
+
+
+def test_should_flag_per_field_fallback():
+    # Unlisted field falls back to global 0.75
+    assert should_flag(0.80, field_name="random_unlisted_field") is False
+    assert should_flag(0.70, field_name="random_unlisted_field") is True
+

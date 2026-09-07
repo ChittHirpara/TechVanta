@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import FieldModal from '../modals/FieldModal';
 import AuditModal from '../modals/AuditModal';
 import DilrmpModal from '../modals/DilrmpModal';
+import DuplicateCompareModal from '../modals/DuplicateCompareModal';
+import CadastralMapPanel from './CadastralMapPanel';
 import {
   IconFile,
   IconDownload,
@@ -31,6 +33,7 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
   const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isDilrmpModalOpen, setIsDilrmpModalOpen] = useState(false);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
 
   // Action loading state
   const [isVerifying, setIsVerifying] = useState(false);
@@ -184,6 +187,16 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
             <IconCopy size={13} />
             DILRMP 2.0 Export
           </button>
+          <a
+            className="btn btn-outline btn-sm"
+            href={documentsApi.getCertificateUrl(docId, token)}
+            target="_blank"
+            rel="noreferrer"
+            title="View and print official sovereign verification certificate with tamper-evident QR seal"
+          >
+            <IconFile size={13} />
+            Sovereign Certificate
+          </a>
           <button
             className="btn btn-outline btn-sm"
             onClick={handleReprocess}
@@ -418,6 +431,9 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
         </div>
       </div>
 
+      {/* Cadastral Geolocation Map Inspector */}
+      <CadastralMapPanel doc={doc} fields={doc.fields} />
+
       {/* Modals */}
       <FieldModal
         isOpen={isFieldModalOpen}
@@ -442,6 +458,14 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
         docId={docId}
         onClose={() => setIsDilrmpModalOpen(false)}
         showToast={showToast}
+      />
+
+      <DuplicateCompareModal
+        isOpen={isCompareModalOpen}
+        onClose={() => setIsCompareModalOpen(false)}
+        currentDoc={doc}
+        currentFields={doc.fields}
+        duplicateMatch={suspectedMatch}
       />
     </div>
   );
