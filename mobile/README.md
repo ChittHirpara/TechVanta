@@ -1,56 +1,93 @@
-# Welcome to your Expo app 👋
+# BhoomiScan AI (TechVanta) Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Sovereign Land Record Digitization, Fraud Verification, and Field Audit Mobile Application built with **React Native** and **Expo SDK 54** for the Smart India Hackathon platform.
 
-## Get started
+---
 
-1. Install dependencies
+## 🚀 Features
 
-   ```bash
-   npm install
-   ```
+- **Field Officer Authentication**: Role-based access control (`verifier`, `admin`, `field_officer`) backed by JWT tokens stored securely via `expo-secure-store`.
+- **Live Ingestion Analytics**: Real-time stats dashboard displaying total ingested records, verified count, pending review queue, flagged attributes count, and district-wise breakdown.
+- **Document Camera & Capture**: High-resolution camera scan interface with visual alignment frame and gallery photo selector fallback.
+- **Live SSE Extraction Pipeline**: Consumes Server-Sent Events (`/api/v1/documents/{id}/events`) to stream real-time pipeline stages (`OCR Scan → LLM Extraction → Rule Validation → Persistence`).
+- **Field Review & Attribute Correction**: Detailed view of extracted land record attributes, confidence scores, flagged states, field correction modal with reason log, and verifier digital signature sealing.
+- **Searchable Land Registry**: Search land records by Khasra number, plot title, owner name, status filter, or district filter.
+- **Cryptographic Audit Trail**: Complete event chronology with SHA-256 integrity hash verification.
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 🛠️ Tech Stack & SDK Version
 
-In the output, you'll find options to open the app in a
+- **Framework**: Expo SDK 54 (React Native 0.81.5 / React 19.1.0)
+- **Navigation**: React Navigation (Native Stack)
+- **Storage**: `expo-secure-store`
+- **Camera & Gallery**: `expo-camera`, `expo-image-picker`
+- **Streaming**: `react-native-sse`
+- **Design System**: BhoomiScan Sovereign Government Theme Tokens (`src/theme/theme.js`)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 📋 Prerequisites & Setup
 
-## Get a fresh project
+### 1. Installation
 
-When you're ready, run:
+From the `mobile/` directory, install all required dependencies:
 
 ```bash
-npm run reset-project
+cd mobile
+npm install --legacy-peer-deps
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Environment Configuration
 
-### Other setup steps
+The application reads the API base URL from `EXPO_PUBLIC_API_BASE_URL` in `mobile/.env`.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Default `.env` configuration:
 
-## Learn more
+```env
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+> ⚠️ **Important for Physical Device Testing (iOS / Android)**:  
+> When testing on a physical mobile device running the Expo Go app or a standalone build, `localhost` points to the mobile device itself. You **must** replace `localhost` with your development computer's local network (LAN) IP address:
+>
+> ```env
+> EXPO_PUBLIC_API_BASE_URL=http://192.168.x.x:8000/api/v1
+> ```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+## 🏃 Running the Application
 
-Join our community of developers creating universal apps.
+Start the Expo development server:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npx expo start
+```
+
+- Press `a` to open in Android Emulator
+- Press `i` to open in iOS Simulator
+- Press `w` to launch in Web browser
+- Scan the QR code using **Expo Go** on your physical phone
+
+---
+
+## 🧪 Health Verification
+
+To verify Expo SDK package version alignment:
+
+```bash
+npx expo-doctor
+```
+
+Expected result: `18/18 checks passed. No issues detected!`
+
+---
+
+## 🏛️ Default Test Credentials
+
+| Role | Username | Password |
+| :--- | :--- | :--- |
+| **Verifying Officer** | `verifier` | `verifier123` |
+| **Administrator** | `admin` | `admin123` |
+| **Field Officer** | `field_officer` | `officer123` |

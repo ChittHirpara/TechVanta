@@ -27,16 +27,17 @@ export function AuthProvider({ children }) {
     async function verifySession() {
       try {
         const existingToken = await getStoredToken();
-        const existingUser = await getStoredUser();
 
         if (existingToken) {
-          setToken(existingToken);
-          setUser(existingUser);
-
           try {
             const profile = await authApi.getMe(existingToken);
-            setUser(profile);
-            await setStoredUser(profile);
+            if (profile?.role && profile.role !== 'field_officer') {
+              await logout();
+            } else {
+              setToken(existingToken);
+              setUser(profile);
+              await setStoredUser(profile);
+            }
           } catch (err) {
             // Token invalid or expired
             if (err.message && err.message.includes('Authentication required')) {
@@ -60,8 +61,6 @@ export function AuthProvider({ children }) {
   const login = async (username, password) => {
     const res = await authApi.login({ username, password });
     const accessToken = res.access_token;
-    setToken(accessToken);
-    await setStoredToken(accessToken);
 
     let profile;
     try {
@@ -70,6 +69,14 @@ export function AuthProvider({ children }) {
       profile = { username, role: 'field_officer' };
     }
 
+    if (profile?.role && profile.role !== 'field_officer') {
+      await setStoredToken(null);
+      await setStoredUser(null);
+      throw new Error('This mobile app is for field officers only. Please use the web dashboard.');
+    }
+
+    setToken(accessToken);
+    await setStoredToken(accessToken);
     setUser(profile);
     await setStoredUser(profile);
     return profile;
@@ -83,13 +90,11 @@ export function AuthProvider({ children }) {
   const value = {
     token,
     user,
-    isAuthenticated: Boolean(token && user),
+    isAuthenticated: Boolean(token && user && user.role === 'field_officer'),
     isLoading,
     login,
     register,
     logout,
-    isAdmin: user?.role === 'admin',
-    isVerifier: user?.role === 'verifier' || user?.role === 'admin',
     isFieldOfficer: user?.role === 'field_officer',
   };
 

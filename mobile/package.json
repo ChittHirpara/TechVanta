@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "main": "expo-router/entry",
+  "main": "App.js",
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~0.2.0-beta.9",

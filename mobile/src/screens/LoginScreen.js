@@ -15,12 +15,13 @@ import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import { colors, radius, typography, spacing } from '../theme/theme';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ route }) {
   const { login } = useAuth();
-  const [username, setUsername] = useState('verifier');
-  const [password, setPassword] = useState('verifier123');
+  const sessionExpiredMsg = route?.params?.message;
+  const [username, setUsername] = useState('field_officer');
+  const [password, setPassword] = useState('officer123');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(sessionExpiredMsg || null);
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
@@ -56,15 +57,15 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.emblemText}>🏛️</Text>
           </View>
           <Text style={styles.title}>BhoomiScan AI</Text>
-          <Text style={styles.hindiTitle}>भूमिस्कैन एआई - भू-अभिलेख पोर्टल</Text>
+          <Text style={styles.hindiTitle}>भूमिस्कैन एआई - भू-अभिलेख क्षेत्र अधिकारी</Text>
           <Text style={styles.subtitle}>
-            Field Verifier Portal • Land Record Verification & Fraud Prevention
+            Field Officer Mobile App • Capture, Local Queue & Status Tracking
           </Text>
         </View>
 
         <Card style={styles.card}>
-          <Text style={styles.cardHeader}>Officer Authentication</Text>
-          <Text style={styles.cardSub}>Sign in with your government verifier credentials</Text>
+          <Text style={styles.cardHeader}>Field Officer Authentication</Text>
+          <Text style={styles.cardSub}>Sign in with your assigned field officer credentials</Text>
 
           {error ? (
             <View style={styles.errorBox}>
@@ -73,10 +74,10 @@ export default function LoginScreen({ navigation }) {
           ) : null}
 
           <Input
-            label="Officer Username"
+            label="Field Officer Username"
             value={username}
             onChangeText={setUsername}
-            placeholder="e.g. verifier"
+            placeholder="e.g. field_officer"
             autoCapitalize="none"
           />
 
@@ -89,7 +90,7 @@ export default function LoginScreen({ navigation }) {
           />
 
           <Button
-            title="Authenticate & Enter Portal"
+            title="Authenticate Field Officer"
             onPress={handleLogin}
             loading={loading}
             variant="saffron"
@@ -97,25 +98,13 @@ export default function LoginScreen({ navigation }) {
           />
 
           <View style={styles.quickAccess}>
-            <Text style={styles.quickAccessTitle}>Quick Demo Credentials:</Text>
+            <Text style={styles.quickAccessTitle}>Quick Field Officer Credentials:</Text>
             <View style={styles.quickAccessButtons}>
-              <TouchableOpacity
-                style={styles.quickChip}
-                onPress={() => setQuickCreds('verifier', 'verifier123')}
-              >
-                <Text style={styles.quickChipText}>Verifying Officer</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.quickChip}
-                onPress={() => setQuickCreds('admin', 'admin123')}
-              >
-                <Text style={styles.quickChipText}>Admin</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.quickChip}
                 onPress={() => setQuickCreds('field_officer', 'officer123')}
               >
-                <Text style={styles.quickChipText}>Field Officer</Text>
+                <Text style={styles.quickChipText}>Field Officer (`field_officer`)</Text>
               </TouchableOpacity>
             </View>
           </View>
