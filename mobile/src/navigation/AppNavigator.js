@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 
 import GovHeader from '../components/common/GovHeader';
 import LoginScreen from '../screens/LoginScreen';
-import DashboardScreen from '../screens/DashboardScreen';
 import CaptureScreen from '../screens/CaptureScreen';
 import ProcessingScreen from '../screens/ProcessingScreen';
 import ReviewScreen from '../screens/ReviewScreen';
@@ -30,6 +29,7 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
+        initialRouteName="Registry"
         screenOptions={{
           header: () => <GovHeader />,
           contentStyle: { backgroundColor: colors.bgPage },
@@ -43,11 +43,10 @@ export default function AppNavigator() {
           />
         ) : (
           <>
-            <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            <Stack.Screen name="Registry" component={RegistryScreen} />
             <Stack.Screen name="Capture" component={CaptureScreen} />
             <Stack.Screen name="Processing" component={ProcessingScreen} />
             <Stack.Screen name="Review" component={ReviewScreen} />
-            <Stack.Screen name="Registry" component={RegistryScreen} />
             <Stack.Screen name="Audit" component={AuditScreen} />
           </>
         )}
