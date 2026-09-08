@@ -107,3 +107,16 @@ export async function deleteQueueItem(id) {
   await FileSystem.deleteAsync(itemDir, { idempotent: true }).catch(() => {});
   await db.runAsync('DELETE FROM capture_queue WHERE id = ?', [id]);
 }
+
+export async function getQueuedCount() {
+  try {
+    const db = await getDatabase();
+    const result = await db.getFirstAsync(
+      "SELECT COUNT(*) as count FROM capture_queue WHERE status = 'queued'"
+    );
+    return result?.count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+

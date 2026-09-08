@@ -157,6 +157,57 @@ export async function apiClient(endpoint, options = {}) {
   return await res.json();
 }
 
+/**
+ * Upload FormData with real-time percentage progress callback using XMLHttpRequest
+ */
+export async function uploadWithProgress(formData, onProgress) {
+  const apiBase = getApiBaseUrl();
+  const url = `${apiBase}/documents/upload`;
+  const token = await getStoredToken();
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          onProgress(percentComplete);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response);
+        } catch (e) {
+          resolve({ id: null, raw: xhr.responseText });
+        }
+      } else {
+        try {
+          const errRes = JSON.parse(xhr.responseText);
+          reject(new Error(errRes.detail || `Upload failed with status ${xhr.status}`));
+        } catch (e) {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Network upload error. Please check connectivity.'));
+    };
+
+    xhr.send(formData);
+  });
+}
+
 export const authApi = {
   login: (credentials) =>
     apiClient('/auth/login', {
