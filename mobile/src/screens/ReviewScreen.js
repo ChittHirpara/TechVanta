@@ -5,18 +5,13 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Modal,
-  Alert,
-  TouchableOpacity,
   RefreshControl,
-  Image,
 } from 'react-native';
 import { documentsApi } from '../api/client';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
-import Input from '../components/common/Input';
-import { colors, radius, typography, spacing, shadows } from '../theme/theme';
+import { colors, radius, typography, spacing } from '../theme/theme';
 
 export default function ReviewScreen({ route, navigation }) {
   const { documentId } = route.params || {};
@@ -24,15 +19,7 @@ export default function ReviewScreen({ route, navigation }) {
   const [document, setDocument] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState(null);
-
-  // Edit Modal State
-  const [selectedField, setSelectedField] = useState(null);
-  const [correctedValue, setCorrectedValue] = useState('');
-  const [reason, setReason] = useState('');
-  const [savingField, setSavingField] = useState(false);
-  const [fieldError, setFieldError] = useState(null);
 
   const fetchDocument = useCallback(async () => {
     if (!documentId) return;
@@ -55,67 +42,6 @@ export default function ReviewScreen({ route, navigation }) {
   const onRefresh = () => {
     setRefreshing(true);
     fetchDocument();
-  };
-
-  const openFieldEditor = (field) => {
-    setSelectedField(field);
-    setCorrectedValue(field.verified_value || field.extracted_value || '');
-    setReason(field.correction_reason || 'Field verification correction');
-    setFieldError(null);
-  };
-
-  const closeFieldEditor = () => {
-    setSelectedField(null);
-    setCorrectedValue('');
-    setReason('');
-    setFieldError(null);
-  };
-
-  const handleSaveField = async () => {
-    if (!correctedValue.trim()) {
-      setFieldError('Corrected value cannot be empty.');
-      return;
-    }
-    if (!reason.trim()) {
-      setFieldError('Please state a reason for this field correction.');
-      return;
-    }
-
-    try {
-      setSavingField(true);
-      setFieldError(null);
-
-      await documentsApi.patchField(documentId, selectedField.field_name, {
-        corrected_value: correctedValue.trim(),
-        reason: reason.trim(),
-      });
-
-      closeFieldEditor();
-      fetchDocument();
-    } catch (err) {
-      setFieldError(err.message || 'Failed to update field.');
-    } finally {
-      setSavingField(false);
-    }
-  };
-
-  const handleVerifyDocument = async () => {
-    try {
-      setVerifying(true);
-      await documentsApi.verify(documentId);
-      Alert.alert(
-        'Verification Complete',
-        'Record signed, sealed, and marked as Verified in Land Registry.',
-        [{ text: 'OK', onPress: fetchDocument }]
-      );
-    } catch (err) {
-      Alert.alert(
-        'Verification Blocked',
-        err.message || 'Resolve all flagged fields before verifying document.'
-      );
-    } finally {
-      setVerifying(false);
-    }
   };
 
   if (loading && !refreshing) {
@@ -163,15 +89,7 @@ export default function ReviewScreen({ route, navigation }) {
             title="📜 View Audit Trail"
             onPress={() => navigation.navigate('Audit', { documentId })}
             variant="outline"
-            style={{ flex: 1, marginRight: spacing.xs }}
-          />
-          <Button
-            title={document?.status === 'verified' ? '✓ Record Verified' : 'Verify & Seal'}
-            onPress={handleVerifyDocument}
-            variant="saffron"
-            loading={verifying}
-            disabled={document?.status === 'verified'}
-            style={{ flex: 1, marginLeft: spacing.xs }}
+            style={{ flex: 1 }}
           />
         </View>
       </Card>
@@ -183,11 +101,11 @@ export default function ReviewScreen({ route, navigation }) {
         </Card>
       ) : null}
 
-      {/* Flagged Summary Box */}
+      {/* Verification Notice */}
       {flaggedCount > 0 ? (
         <View style={styles.flaggedNotice}>
           <Text style={styles.flaggedNoticeText}>
-            🚩 {flaggedCount} {flaggedCount === 1 ? 'attribute requires' : 'attributes require'} manual verifier review & correction before official sealing.
+            🚩 {flaggedCount} {flaggedCount === 1 ? 'attribute requires' : 'attributes require'} manual review. Field verification & editing must be performed on the Web Dashboard.
           </Text>
         </View>
       ) : (
@@ -201,7 +119,7 @@ export default function ReviewScreen({ route, navigation }) {
       {/* Extracted Fields Section */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Extracted Land Attributes ({fields.length})</Text>
-        <Text style={styles.sectionSub}>Tap any attribute to edit or correct OCR/LLM value</Text>
+        <Text style={styles.sectionSub}>Read-only view of extracted OCR & LLM data</Text>
       </View>
 
       {fields.map((field) => {
@@ -210,137 +128,63 @@ export default function ReviewScreen({ route, navigation }) {
         const isLowConf = confPct < 70;
 
         return (
-          <TouchableOpacity
-            key={field.id || field.field_name}
-            activeOpacity={0.85}
-            onPress={() => openFieldEditor(field)}
-          >
-            <Card style={[styles.fieldCard, field.is_flagged && styles.flaggedFieldCard]}>
-              <View style={styles.fieldHeader}>
-                <Text style={styles.fieldName}>
-                  {field.field_name ? field.field_name.replace(/_/g, ' ').toUpperCase() : 'FIELD'}
-                </Text>
-                <View style={styles.badgeRow}>
-                  {field.is_overridden ? (
-                    <Badge status="verified" label="CORRECTED" style={{ marginRight: 4 }} />
-                  ) : null}
-                  {field.is_flagged ? (
-                    <Badge status="flagged" label="FLAGGED" style={{ marginRight: 4 }} />
-                  ) : null}
-                  <View
+          <Card key={field.id || field.field_name} style={[styles.fieldCard, field.is_flagged && styles.flaggedFieldCard]}>
+            <View style={styles.fieldHeader}>
+              <Text style={styles.fieldName}>
+                {field.field_name ? field.field_name.replace(/_/g, ' ').toUpperCase() : 'FIELD'}
+              </Text>
+              <View style={styles.badgeRow}>
+                {field.is_overridden ? (
+                  <Badge status="verified" label="CORRECTED" style={{ marginRight: 4 }} />
+                ) : null}
+                {field.is_flagged ? (
+                  <Badge status="flagged" label="FLAGGED" style={{ marginRight: 4 }} />
+                ) : null}
+                <View
+                  style={[
+                    styles.confBadge,
+                    {
+                      backgroundColor: isHighConf
+                        ? colors.emerald100
+                        : isLowConf
+                        ? colors.rose100
+                        : colors.saffron100,
+                    },
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.confBadge,
+                      styles.confText,
                       {
-                        backgroundColor: isHighConf
-                          ? colors.emerald100
+                        color: isHighConf
+                          ? colors.emerald800
                           : isLowConf
-                          ? colors.rose100
-                          : colors.saffron100,
+                          ? colors.rose800
+                          : colors.saffron900,
                       },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.confText,
-                        {
-                          color: isHighConf
-                            ? colors.emerald800
-                            : isLowConf
-                            ? colors.rose800
-                            : colors.saffron900,
-                        },
-                      ]}
-                    >
-                      {confPct}% conf
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.fieldBody}>
-                <View style={styles.valCol}>
-                  <Text style={styles.valLabel}>Value:</Text>
-                  <Text style={styles.valContent}>
-                    {field.verified_value || field.extracted_value || 'N/A'}
+                    {confPct}% conf
                   </Text>
                 </View>
-                <Text style={styles.editIcon}>✏️ Edit</Text>
               </View>
+            </View>
 
-              {field.correction_reason ? (
-                <Text style={styles.reasonText}>Reason: {field.correction_reason}</Text>
-              ) : null}
-            </Card>
-          </TouchableOpacity>
+            <View style={styles.fieldBody}>
+              <View style={styles.valCol}>
+                <Text style={styles.valLabel}>Extracted Value:</Text>
+                <Text style={styles.valContent}>
+                  {field.verified_value || field.extracted_value || 'N/A'}
+                </Text>
+              </View>
+            </View>
+
+            {field.correction_reason ? (
+              <Text style={styles.reasonText}>Correction Note: {field.correction_reason}</Text>
+            ) : null}
+          </Card>
         );
       })}
-
-      {/* Field Editor Modal */}
-      <Modal
-        visible={Boolean(selectedField)}
-        animationType="slide"
-        transparent
-        onRequestClose={closeFieldEditor}
-      >
-        <View style={styles.modalOverlay}>
-          <Card style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                Correct Attribute:{' '}
-                {selectedField?.field_name
-                  ? selectedField.field_name.replace(/_/g, ' ').toUpperCase()
-                  : ''}
-              </Text>
-              <TouchableOpacity onPress={closeFieldEditor}>
-                <Text style={styles.closeBtn}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {fieldError ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorBoxText}>⚠️ {fieldError}</Text>
-              </View>
-            ) : null}
-
-            <Text style={styles.modalLabel}>Original Extracted Value:</Text>
-            <Text style={styles.originalVal}>
-              {selectedField?.extracted_value || '(Empty)'}
-            </Text>
-
-            <Input
-              label="Corrected Value"
-              value={correctedValue}
-              onChangeText={setCorrectedValue}
-              placeholder="Enter accurate revenue value"
-            />
-
-            <Input
-              label="Reason for Correction"
-              value={reason}
-              onChangeText={setReason}
-              placeholder="e.g. OCR misread digit in Khasra number"
-              multiline
-              numberOfLines={2}
-            />
-
-            <View style={styles.modalActions}>
-              <Button
-                title="Cancel"
-                onPress={closeFieldEditor}
-                variant="outline"
-                style={{ flex: 1, marginRight: spacing.xs }}
-              />
-              <Button
-                title="Save Correction"
-                onPress={handleSaveField}
-                variant="saffron"
-                loading={savingField}
-                style={{ flex: 1, marginLeft: spacing.xs }}
-              />
-            </View>
-          </Card>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }
@@ -489,11 +333,6 @@ const styles = StyleSheet.create({
     color: colors.slate900,
     marginTop: 1,
   },
-  editIcon: {
-    fontSize: typography.sizes.xs,
-    color: colors.govNavy600,
-    fontWeight: typography.weights.semibold,
-  },
   reasonText: {
     fontSize: typography.sizes.xs,
     color: colors.slate600,
@@ -502,63 +341,5 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
     borderTopWidth: 1,
     borderTopColor: colors.slate200,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.65)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  modalContent: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    ...shadows.lg,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  modalTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.govNavy900,
-  },
-  closeBtn: {
-    fontSize: 20,
-    color: colors.slate500,
-    padding: 4,
-  },
-  errorBox: {
-    backgroundColor: colors.rose50,
-    borderColor: colors.rose600,
-    borderWidth: 1,
-    padding: spacing.sm,
-    borderRadius: radius.sm,
-    marginBottom: spacing.sm,
-  },
-  errorBoxText: {
-    color: colors.rose800,
-    fontSize: typography.sizes.xs,
-  },
-  modalLabel: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate600,
-  },
-  originalVal: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium,
-    color: colors.slate800,
-    backgroundColor: colors.slate100,
-    padding: spacing.sm,
-    borderRadius: radius.sm,
-    marginTop: 2,
-    marginBottom: spacing.md,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    marginTop: spacing.md,
   },
 });
