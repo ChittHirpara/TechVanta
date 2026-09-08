@@ -29,7 +29,7 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Registry"
+        initialRouteName={isAuthenticated ? 'Registry' : 'Login'}
         screenOptions={{
           header: () => <GovHeader />,
           contentStyle: { backgroundColor: colors.bgPage },
