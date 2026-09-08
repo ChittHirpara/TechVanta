@@ -12,6 +12,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { documentsApi } from '../api/client';
+import { checkImageQuality } from '../utils/imageQuality';
 import Card from '../components/common/Card';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
@@ -31,7 +32,12 @@ const DISTRICTS = [
 export default function CaptureScreen({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState('back');
-  const [capturedUri, setCapturedUri] = useState(null);
+  
+  // Multi-page batch state
+  const [pages, setPages] = useState([]);
+  const [activePageIndex, setActivePageIndex] = useState(0);
+  const [isCameraActive, setIsCameraActive] = useState(true);
+
   const [title, setTitle] = useState('');
   const [district, setDistrict] = useState('Patna');
   const [uploading, setUploading] = useState(false);
@@ -39,15 +45,57 @@ export default function CaptureScreen({ navigation }) {
 
   const cameraRef = useRef(null);
 
+  const processCapturedImage = async (uri) => {
+    const quality = await checkImageQuality(uri);
+    if (quality.warning) {
+      Alert.alert(
+        'Quality Warning',
+        `${quality.warning}\nDo you want to retake or use this page?`,
+        [
+          { text: 'Retake', style: 'cancel' },
+          {
+            text: 'Use Page',
+            onPress: () => addPageToBatch(uri),
+          },
+        ]
+      );
+    } else {
+      addPageToBatch(uri);
+    }
+  };
+
+  const addPageToBatch = (uri) => {
+    const newPage = { uri, id: Date.now() };
+    setPages((prev) => {
+      const updated = [...prev, newPage];
+      setActivePageIndex(updated.length - 1);
+      return updated;
+    });
+    setIsCameraActive(false);
+    if (!title) {
+      setTitle(`Land Record ${new Date().toLocaleDateString()}`);
+    }
+  };
+
+  const removePage = (indexToRemove) => {
+    setPages((prev) => {
+      const updated = prev.filter((_, idx) => idx !== indexToRemove);
+      if (updated.length === 0) {
+        setIsCameraActive(true);
+        setActivePageIndex(0);
+      } else if (activePageIndex >= updated.length) {
+        setActivePageIndex(updated.length - 1);
+      }
+      return updated;
+    });
+  };
+
   const takePicture = async () => {
     if (cameraRef.current) {
       try {
         const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
         if (photo && photo.uri) {
-          setCapturedUri(photo.uri);
-          if (!title) {
-            setTitle(`Land Record ${new Date().toLocaleDateString()}`);
-          }
+          await processCapturedImage(photo.uri);
         }
       } catch (err) {
         Alert.alert('Camera Error', 'Failed to capture photo. Please try again.');
@@ -60,13 +108,12 @@ export default function CaptureScreen({ navigation }) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.85,
+        allowsMultipleSelection: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const selected = result.assets[0];
-        setCapturedUri(selected.uri);
-        if (!title) {
-          setTitle(`Land Record ${new Date().toLocaleDateString()}`);
+        for (const asset of result.assets) {
+          await processCapturedImage(asset.uri);
         }
       }
     } catch (err) {
@@ -75,8 +122,8 @@ export default function CaptureScreen({ navigation }) {
   };
 
   const handleUpload = async () => {
-    if (!capturedUri) {
-      setError('Please capture or select a document image first.');
+    if (pages.length === 0) {
+      setError('Please capture or select at least one document page.');
       return;
     }
 
@@ -84,20 +131,24 @@ export default function CaptureScreen({ navigation }) {
       setUploading(true);
       setError(null);
 
+      // Multi-page batch client-side upload handling
+      const currentUri = pages[activePageIndex]?.uri || pages[0].uri;
       const formData = new FormData();
-      const filename = capturedUri.split('/').pop() || 'record.jpg';
+      const filename = currentUri.split('/').pop() || 'record.jpg';
       const match = /\.(\w+)$/.exec(filename);
       const type = match ? `image/${match[1]}` : 'image/jpeg';
 
       formData.append('file', {
-        uri: capturedUri,
+        uri: currentUri,
         name: filename,
         type,
       });
 
-      if (title.trim()) {
-        formData.append('title', title.trim());
-      }
+      const fullTitle = pages.length > 1 
+        ? `${title.trim() || 'Land Record'} (Batch ${pages.length} Pages)`
+        : (title.trim() || 'Land Record');
+
+      formData.append('title', fullTitle);
       if (district) {
         formData.append('district', district);
       }
@@ -111,15 +162,10 @@ export default function CaptureScreen({ navigation }) {
         throw new Error('Server returned invalid document ID.');
       }
     } catch (err) {
-      setError(err.message || 'Upload failed. Please check connection and file format.');
+      setError(err.message || 'Upload failed. Please check connection.');
     } finally {
       setUploading(false);
     }
-  };
-
-  const resetCapture = () => {
-    setCapturedUri(null);
-    setError(null);
   };
 
   if (!permission) {
@@ -155,8 +201,8 @@ export default function CaptureScreen({ navigation }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Land Record Document Capture</Text>
-        <Text style={styles.headerSub}>Capture revenue document, Khatian, or Registry deed</Text>
+        <Text style={styles.headerTitle}>Multi-Page Land Record Scan</Text>
+        <Text style={styles.headerSub}>Capture multiple pages for a unified document record</Text>
       </View>
 
       {error ? (
@@ -165,7 +211,7 @@ export default function CaptureScreen({ navigation }) {
         </Card>
       ) : null}
 
-      {!capturedUri ? (
+      {isCameraActive || pages.length === 0 ? (
         <Card style={styles.cameraCard}>
           <View style={styles.cameraFrame}>
             <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
@@ -174,7 +220,9 @@ export default function CaptureScreen({ navigation }) {
                 <View style={styles.cornerTR} />
                 <View style={styles.cornerBL} />
                 <View style={styles.cornerBR} />
-                <Text style={styles.guideText}>Align Document Within Rectangular Frame</Text>
+                <Text style={styles.guideText}>
+                  Align Page #{pages.length + 1} Within Rectangular Frame
+                </Text>
               </View>
             </CameraView>
           </View>
@@ -193,13 +241,59 @@ export default function CaptureScreen({ navigation }) {
               <Text style={styles.galleryBtnText}>Gallery</Text>
             </TouchableOpacity>
           </View>
+
+          {pages.length > 0 ? (
+            <Button
+              title={`Cancel & View Captured Pages (${pages.length})`}
+              onPress={() => setIsCameraActive(false)}
+              variant="outline"
+              style={{ marginTop: spacing.xs }}
+            />
+          ) : null}
         </Card>
       ) : (
         <Card style={styles.previewCard}>
-          <Text style={styles.previewTitle}>Captured Document Preview</Text>
-          <View style={styles.previewFrame}>
-            <Image source={{ uri: capturedUri }} style={styles.previewImage} resizeMode="contain" />
+          <View style={styles.previewHeaderRow}>
+            <Text style={styles.previewTitle}>
+              Document Preview (Page {activePageIndex + 1} of {pages.length})
+            </Text>
+            <TouchableOpacity onPress={() => removePage(activePageIndex)}>
+              <Text style={styles.deletePageText}>🗑️ Delete Page</Text>
+            </TouchableOpacity>
           </View>
+
+          <View style={styles.previewFrame}>
+            <Image
+              source={{ uri: pages[activePageIndex]?.uri }}
+              style={styles.previewImage}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* Thumbnail Strip */}
+          <Text style={styles.thumbnailLabel}>Captured Pages ({pages.length}):</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailStrip}>
+            {pages.map((p, idx) => (
+              <TouchableOpacity
+                key={p.id}
+                style={[
+                  styles.thumbContainer,
+                  activePageIndex === idx && styles.thumbActive,
+                ]}
+                onPress={() => setActivePageIndex(idx)}
+              >
+                <Image source={{ uri: p.uri }} style={styles.thumbImage} />
+                <View style={styles.thumbBadge}>
+                  <Text style={styles.thumbBadgeText}>{idx + 1}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity style={styles.addThumbBtn} onPress={() => setIsCameraActive(true)}>
+              <Text style={styles.addThumbIcon}>➕</Text>
+              <Text style={styles.addThumbText}>Add Page</Text>
+            </TouchableOpacity>
+          </ScrollView>
 
           <View style={styles.metaForm}>
             <Input
@@ -234,14 +328,14 @@ export default function CaptureScreen({ navigation }) {
 
             <View style={styles.actionButtons}>
               <Button
-                title="Retake Photo"
-                onPress={resetCapture}
+                title="➕ Add Page"
+                onPress={() => setIsCameraActive(true)}
                 variant="outline"
                 style={{ flex: 1, marginRight: spacing.xs }}
                 disabled={uploading}
               />
               <Button
-                title="Upload & Start OCR"
+                title={`Upload (${pages.length} ${pages.length === 1 ? 'Page' : 'Pages'})`}
                 onPress={handleUpload}
                 variant="saffron"
                 loading={uploading}
@@ -378,11 +472,21 @@ const styles = StyleSheet.create({
   previewCard: {
     padding: spacing.md,
   },
+  previewHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
   previewTitle: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.bold,
     color: colors.govNavy900,
-    marginBottom: spacing.sm,
+  },
+  deletePageText: {
+    fontSize: typography.sizes.xs,
+    color: colors.rose600,
+    fontWeight: typography.weights.bold,
   },
   previewFrame: {
     height: 240,
@@ -394,6 +498,67 @@ const styles = StyleSheet.create({
   previewImage: {
     width: '100%',
     height: '100%',
+  },
+  thumbnailLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    color: colors.slate700,
+    marginBottom: spacing.xs,
+  },
+  thumbnailStrip: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+  },
+  thumbContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+    marginRight: 8,
+    borderWidth: 2,
+    borderColor: colors.slate300,
+    position: 'relative',
+  },
+  thumbActive: {
+    borderColor: colors.saffron500,
+  },
+  thumbImage: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    backgroundColor: 'rgba(6, 19, 37, 0.85)',
+    borderRadius: radius.full,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  thumbBadgeText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: typography.weights.bold,
+  },
+  addThumbBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.slate400,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.slate100,
+  },
+  addThumbIcon: {
+    fontSize: 16,
+  },
+  addThumbText: {
+    fontSize: 9,
+    color: colors.slate700,
+    fontWeight: typography.weights.semibold,
+    marginTop: 2,
   },
   metaForm: {
     marginTop: spacing.xs,

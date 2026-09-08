@@ -17,5 +17,9 @@ The mobile app currently consumes the existing `/api/v1` FastAPI backend endpoin
 3. **Biometric Authentication (FaceID / TouchID)**
    - *Proposal*: Enable fast local biometric unlock via `expo-local-authentication` after initial JWT auth.
 
-4. **GIS Map Layer Integration for Cadastral Maps**
+4. **Multi-Page Document Batch Upload**
+   - *Observation*: FastAPI backend `/api/v1/documents/upload` currently accepts a single image file (`file: UploadFile = File(...)`).
+   - *Client Handling*: Mobile app captures multi-page document photo batches and attaches metadata `(Page X of Y)` to each uploaded document item.
+
+5. **GIS Map Layer Integration for Cadastral Maps**
    - *Proposal*: Mobile GeoJSON tile overlay using Mapbox or React Native Maps to render land parcel boundaries directly on the field verifier's device.
