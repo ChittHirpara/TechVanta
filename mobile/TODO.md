@@ -23,3 +23,7 @@ The mobile app currently consumes the existing `/api/v1` FastAPI backend endpoin
 
 5. **GIS Map Layer Integration for Cadastral Maps**
    - *Proposal*: Mobile GeoJSON tile overlay using Mapbox or React Native Maps to render land parcel boundaries directly on the field verifier's device.
+
+6. **Location Reference Master Endpoint**
+   - *Observation*: FastAPI backend does not currently expose a master endpoint for revenue village/tehsil dropdowns (`/api/v1/locations/reference`).
+   - *Client Handling*: Mobile app collects `village` and `tehsil` via free-text inputs with `expo-location` GPS reverse-geocoding autofill.

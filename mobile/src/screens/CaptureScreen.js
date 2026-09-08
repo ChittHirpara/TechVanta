@@ -11,8 +11,11 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { documentsApi } from '../api/client';
 import { checkImageQuality } from '../utils/imageQuality';
+import { addToQueue } from '../utils/queueDatabase';
+import { syncPendingQueue } from '../services/syncEngine';
 import Card from '../components/common/Card';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
@@ -40,10 +43,46 @@ export default function CaptureScreen({ navigation }) {
 
   const [title, setTitle] = useState('');
   const [district, setDistrict] = useState('Patna');
+  const [tehsil, setTehsil] = useState('');
+  const [village, setVillage] = useState('');
+  const [locating, setLocating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
 
   const cameraRef = useRef(null);
+
+  const handleUseLocation = async () => {
+    try {
+      setLocating(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Permission to access GPS location was denied.');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({});
+      if (loc && loc.coords) {
+        const [geocode] = await Location.reverseGeocodeAsync({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
+        if (geocode) {
+          if (geocode.district && DISTRICTS.includes(geocode.district)) {
+            setDistrict(geocode.district);
+          }
+          if (geocode.subregion || geocode.city) {
+            setTehsil(geocode.subregion || geocode.city || '');
+          }
+          if (geocode.name || geocode.street) {
+            setVillage(geocode.name || geocode.street || '');
+          }
+        }
+      }
+    } catch (err) {
+      Alert.alert('Location Error', 'Could not detect location automatically. Please enter manually.');
+    } finally {
+      setLocating(false);
+    }
+  };
 
   const processCapturedImage = async (uri) => {
     const quality = await checkImageQuality(uri);
@@ -131,38 +170,22 @@ export default function CaptureScreen({ navigation }) {
       setUploading(true);
       setError(null);
 
-      // Multi-page batch client-side upload handling
-      const currentUri = pages[activePageIndex]?.uri || pages[0].uri;
-      const formData = new FormData();
-      const filename = currentUri.split('/').pop() || 'record.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : 'image/jpeg';
-
-      formData.append('file', {
-        uri: currentUri,
-        name: filename,
-        type,
+      // Save to SQLite queue first
+      const item = await addToQueue({
+        title: title.trim() || 'Land Record',
+        district,
+        tehsil: tehsil.trim(),
+        village: village.trim(),
+        pages,
       });
 
-      const fullTitle = pages.length > 1 
-        ? `${title.trim() || 'Land Record'} (Batch ${pages.length} Pages)`
-        : (title.trim() || 'Land Record');
+      // Trigger sync in background
+      syncPendingQueue();
 
-      formData.append('title', fullTitle);
-      if (district) {
-        formData.append('district', district);
-      }
-
-      const res = await documentsApi.upload(formData);
-      const docId = res?.id;
-
-      if (docId) {
-        navigation.navigate('Processing', { documentId: docId });
-      } else {
-        throw new Error('Server returned invalid document ID.');
-      }
+      // Navigate to status tracking registry view
+      navigation.navigate('Registry');
     } catch (err) {
-      setError(err.message || 'Upload failed. Please check connection.');
+      setError(err.message || 'Failed to enqueue capture to offline database.');
     } finally {
       setUploading(false);
     }
@@ -296,12 +319,46 @@ export default function CaptureScreen({ navigation }) {
           </ScrollView>
 
           <View style={styles.metaForm}>
+            <View style={styles.locationHeaderRow}>
+              <Text style={styles.fieldLabel}>Location Metadata</Text>
+              <TouchableOpacity
+                style={styles.gpsBtn}
+                onPress={handleUseLocation}
+                disabled={locating}
+              >
+                {locating ? (
+                  <ActivityIndicator size="small" color={colors.saffron600} />
+                ) : (
+                  <Text style={styles.gpsBtnText}>📍 Use Current Location</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
             <Input
               label="Document Title / Reference"
               value={title}
               onChangeText={setTitle}
               placeholder="e.g. Khatian Plot #402 - Ram Nagar"
             />
+
+            <View style={styles.locRow}>
+              <View style={{ flex: 1, marginRight: spacing.xs }}>
+                <Input
+                  label="Tehsil / Sub-district"
+                  value={tehsil}
+                  onChangeText={setTehsil}
+                  placeholder="e.g. Sadar"
+                />
+              </View>
+              <View style={{ flex: 1, marginLeft: spacing.xs }}>
+                <Input
+                  label="Revenue Village / Mauza"
+                  value={village}
+                  onChangeText={setVillage}
+                  placeholder="e.g. Ram Nagar"
+                />
+              </View>
+            </View>
 
             <Text style={styles.fieldLabel}>Revenue District</Text>
             <View style={styles.districtChips}>
@@ -562,6 +619,29 @@ const styles = StyleSheet.create({
   },
   metaForm: {
     marginTop: spacing.xs,
+  },
+  locationHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  gpsBtn: {
+    backgroundColor: colors.saffron50,
+    borderColor: colors.saffron500,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+  },
+  gpsBtnText: {
+    color: colors.saffron900,
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+  },
+  locRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.xs,
   },
   fieldLabel: {
     fontSize: typography.sizes.sm,
