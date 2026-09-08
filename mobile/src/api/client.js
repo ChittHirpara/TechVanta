@@ -70,14 +70,53 @@ export function setUnauthorizedHandler(handler) {
   onUnauthorizedCallback = handler;
 }
 
+// Helper to parse JWT payload without external library
+export function parseJwt(token) {
+  try {
+    if (!token) return null;
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
+export function isTokenExpired(token) {
+  const payload = parseJwt(token);
+  if (!payload || !payload.exp) return false;
+  const now = Math.floor(Date.now() / 1000);
+  return payload.exp < now;
+}
+
 export async function apiClient(endpoint, options = {}) {
   const apiBase = getApiBaseUrl();
   const url = endpoint.startsWith('http') ? endpoint : `${apiBase}${endpoint}`;
   const headers = { ...(options.headers || {}) };
 
   const token = await getStoredToken();
-  if (token && !headers['Authorization']) {
-    headers['Authorization'] = `Bearer ${token}`;
+  if (token) {
+    if (isTokenExpired(token)) {
+      await setStoredToken(null);
+      await setStoredUser(null);
+      if (onUnauthorizedCallback) {
+        onUnauthorizedCallback('Session expired. Please log in again.');
+      }
+      throw new Error('Session expired. Please log in again.');
+    }
+    if (!headers['Authorization']) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
   }
 
   // Set Content-Type: application/json if body is not FormData
@@ -91,7 +130,7 @@ export async function apiClient(endpoint, options = {}) {
     await setStoredToken(null);
     await setStoredUser(null);
     if (onUnauthorizedCallback) {
-      onUnauthorizedCallback();
+      onUnauthorizedCallback('Session expired. Please log in again.');
     }
     throw new Error('Authentication required. Session expired.');
   }

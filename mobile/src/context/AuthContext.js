@@ -6,6 +6,7 @@ import {
   getStoredUser,
   setStoredUser,
   setUnauthorizedHandler,
+  isTokenExpired,
 } from '../api/client';
 
 const AuthContext = createContext(null);
@@ -29,19 +30,22 @@ export function AuthProvider({ children }) {
         const existingToken = await getStoredToken();
 
         if (existingToken) {
-          try {
-            const profile = await authApi.getMe(existingToken);
-            if (profile?.role && profile.role !== 'field_officer') {
-              await logout();
-            } else {
-              setToken(existingToken);
-              setUser(profile);
-              await setStoredUser(profile);
-            }
-          } catch (err) {
-            // Token invalid or expired
-            if (err.message && err.message.includes('Authentication required')) {
-              await logout();
+          if (isTokenExpired(existingToken)) {
+            await logout();
+          } else {
+            try {
+              const profile = await authApi.getMe(existingToken);
+              if (profile?.role && profile.role !== 'field_officer') {
+                await logout();
+              } else {
+                setToken(existingToken);
+                setUser(profile);
+                await setStoredUser(profile);
+              }
+            } catch (err) {
+              if (err.message && (err.message.includes('Authentication required') || err.message.includes('Session expired'))) {
+                await logout();
+              }
             }
           }
         }
