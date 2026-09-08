@@ -225,6 +225,52 @@ def _build_extraction_result(
     )
 
 
+def _extract_fields_heuristic(
+    raw_text: str,
+    raw_response: str = "",
+    model: str = "heuristic-regex",
+    attempt_count: int = 1,
+    error: str | None = None,
+) -> ExtractionResult:
+    """Fallback rule-based heuristic extraction from OCR text when LLM is offline or unconfigured."""
+    patterns = {
+        "district": r"(?:District|Zila|ज़िला|जिला)\s*[:\-]?\s*([A-Za-z]+)",
+        "tehsil": r"(?:Tehsil|तहसील)\s*[:\-]?\s*([A-Za-z]+)",
+        "village": r"(?:Village|Gram|Mauza|गाँव|ग्राम|मौजा)\s*[:\-]?\s*([A-Za-z\s]+?)(?=\s*(?:Owner|Kashtkar|Khatedar|Tehsil|District|Zila|Halqa|Survey|Khas|Khata|Plot|Land|$|\n))",
+        "owner_name": r"(?:Owner(?:\s*Name)?|Kashtkar(?:\s*Name)?|Pattedar|Khatedar|नाम|खातेदार|काश्तकार)\s*[:\-]?\s*([A-Za-z\s\.\/\(\)\&]+?)(?=\s*(?:Survey|Khas|Khata|Plot|Rakba|Land|Village|Gram|Tehsil|District|Zila|Mutation|Namantaran|Pegistration|Registration|Registry|$|\n))",
+        "survey_number": r"(?:Survey\s*(?:Number|No\.?)?|सर्वे)\s*[:\-]?\s*([A-Za-z0-9\-\/]+)",
+        "khasra_number": r"(?:Khas[rma]+\s*(?:Number|No\.?)?|खसरा)\s*[:\-]?\s*([0-9A-Za-z\/\s]+?)(?=\s*(?:Khata|Plot|Rakba|Land|Survey|Owner|Kashtkar|$|\(|\n))",
+        "khata_number": r"(?:Khata\s*(?:Number|No\.?)?|खाता)\s*[:\-]?\s*([0-9A-Za-z\[\]]+)",
+        "plot_area": r"(?:Plot\s*[KA]?[rR]ea|Land\s*Area|Area|Rakba|रकबा|क्षेत्रफल)\s*[:\-]?\s*([^\n\r]+?)(?=\s*(?:Land\s*Class|Bhoomi|Class|Village|Gram|Tehsil|District|Zila|Mutation|Namantaran|Registration|Pegistration|Registry|$|\n))",
+        "land_classification": r"(?:Land\s*Class[a-z]*|Bhoomi\s*Varg|वर्ग|वर्गीकरण|भूमि\s*का\s*वर्गीकरण)\s*[:\-]?\s*([^\n\r]+?)(?=\s*(?:Pegistration|Registration|Registry|Mutation|Namantaran|Ownership|Issued|$|\n))",
+        "registration_info": r"(?:[PR]egistration\s*Inf[oa]|Registry(?:\s*Details)?|पंजीकरण)\s*[:\-]?\s*([^\n\r]+?)(?=\s*(?:Mutation|Namantaran|Ownership|Issued|$|\n))",
+        "mutation_record": r"(?:Mutation(?:\s*Record)?|Namantaran|नामांतरण)\s*[:\-]?\s*([^\n\r]+?)(?=\s*(?:[PR]egistration|Registry|Ownership|Issued|$|\n))",
+        "ownership_details": r"(?:Ownership(?:\s*Details)?|स्वामित्व)\s*[:\-]?\s*([^\n\r]+?)(?=\s*(?:Issued|Date|$|\n))",
+    }
+    fields: dict[str, FieldExtraction] = {}
+    for name in FIELD_NAMES:
+        pat = patterns.get(name)
+        val: str | None = None
+        conf: Confidence = "low"
+        if pat:
+            m = re.search(pat, raw_text, re.IGNORECASE)
+            if m:
+                extracted_str = m.group(1).strip()
+                if extracted_str and extracted_str.lower() not in ("none", "null", "n/a"):
+                    val = extracted_str
+                    conf = "high" if len(val) > 2 else "medium"
+        fields[name] = FieldExtraction(value=val, confidence=conf)
+
+    found_any = any(f.value is not None for f in fields.values())
+    return ExtractionResult(
+        fields=fields if found_any else {n: FieldExtraction(value=None, confidence="low") for n in FIELD_NAMES},
+        raw_llm_response=raw_response or f"[Heuristic fallback active: {error}]",
+        model=f"{model}+heuristic" if found_any else model,
+        attempt_count=attempt_count,
+        parse_error=error if not found_any else None,
+    )
+
+
 def _null_result(
     raw_response: str,
     model: str,
@@ -270,8 +316,8 @@ async def extract_fields(raw_text: str) -> ExtractionResult:
     2. Try to parse the response as JSON (with fence-stripping + brace-finding).
     3. If parsing fails, ask the LLM to repair the broken JSON (up to
        ``LLM_MAX_RETRIES`` attempts total across both phases).
-    4. If all attempts fail, return an all-null ExtractionResult with
-       ``parse_error`` set, so callers can decide how to handle it.
+    4. If all attempts fail, fall back to heuristic regex extraction so OCR
+       text is never lost, and only return null result if regex also fails.
 
     Args:
         raw_text: The raw OCR-extracted text from a land record document.
@@ -308,7 +354,7 @@ async def extract_fields(raw_text: str) -> ExtractionResult:
         log.debug("[extraction] raw response:\n%s", raw_response)
     except Exception as exc:
         log.error("[extraction] LLM call failed: %s", exc)
-        return _null_result("", model, attempt, str(exc))
+        return _extract_fields_heuristic(raw_text, "", model, attempt, str(exc))
 
     # ── Phase 2: parse with progressive fallbacks ─────────────────────────────
     try:
@@ -347,12 +393,12 @@ async def extract_fields(raw_text: str) -> ExtractionResult:
             broken = repaired  # try to repair the repair next round
         except Exception as exc:
             log.error("[extraction] Repair LLM call failed: %s", exc)
-            return _null_result(raw_response, model, attempt, str(exc))
+            return _extract_fields_heuristic(raw_text, raw_response, model, attempt, str(exc))
 
-    # ── Phase 4: give up, return null result ──────────────────────────────────
+    # ── Phase 4: give up LLM, fall back to heuristic regex ────────────────────
     msg = (
         f"JSON parsing failed after {attempt} attempt(s). "
         "Raw LLM response preserved in raw_llm_response."
     )
     log.error("[extraction] %s", msg)
-    return _null_result(raw_response, model, attempt, msg)
+    return _extract_fields_heuristic(raw_text, raw_response, model, attempt, msg)

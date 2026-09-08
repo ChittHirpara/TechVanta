@@ -125,13 +125,13 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
           setProgressPercent(data.percent);
         }
 
-        if (data.step === 'ocr' || data.step === 'ocr_processing') {
+        if (data.step?.startsWith('ocr') || data.step === 'ocr_processing') {
           setCurrentStep('ocr');
           setCompletedSteps((prev) => Array.from(new Set([...prev, 'uploaded'])));
-        } else if (data.step === 'extraction' || data.step === 'field_extraction') {
+        } else if (data.step?.startsWith('extraction') || data.step === 'field_extraction') {
           setCurrentStep('extraction');
           setCompletedSteps((prev) => Array.from(new Set([...prev, 'uploaded', 'ocr'])));
-        } else if (data.step === 'validation') {
+        } else if (data.step?.startsWith('validation') || data.step === 'persist_fields') {
           setCurrentStep('validation');
           setCompletedSteps((prev) => Array.from(new Set([...prev, 'uploaded', 'ocr', 'extraction'])));
         } else if (data.event === 'complete' || data.step === 'complete') {
@@ -141,6 +141,13 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
           setPipelineFinished(true);
           setPipelineStatus(data.status || 'verified');
           showToast?.(`Pipeline complete for Document #${docId}! Ready for verification.`, 'success');
+          if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+          }
+        } else if (data.event === 'error') {
+          setPipelineFinished(true);
+          setPipelineStatus(data.status || 'needs_review');
+          showToast?.(`Pipeline note: ${data.message || 'Needs review'}`, 'info');
           if (eventSourceRef.current) {
             eventSourceRef.current.close();
           }

@@ -233,7 +233,11 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
             {' '}This parcel closely matches existing Document #{suspectedMatch.document_id} (
             {suspectedMatch.owner_name ? `Owner: ${suspectedMatch.owner_name}, ` : ''}
             Survey #{suspectedMatch.survey_number || 'N/A'}) with{' '}
-            <strong className="font-mono">{Math.round(suspectedMatch.similarity_score)}% similarity</strong>.
+            <strong className="font-mono">
+              {suspectedMatch.combined_score !== undefined && suspectedMatch.combined_score !== null
+                ? `${Math.round(suspectedMatch.combined_score)}% similarity`
+                : 'Similarity score unavailable'}
+            </strong>.
           </div>
         </div>
       )}
@@ -412,14 +416,16 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
               <button
                 className="btn btn-outline btn-sm"
                 onClick={() => handlePushIntegration('lrms')}
-                disabled={isPushingLrms}
+                disabled={isPushingLrms || isFieldOfficer}
+                title={isFieldOfficer ? 'Field Officers cannot push integrations.' : ''}
               >
                 {isPushingLrms ? 'Connecting...' : 'Push to State LRMS'}
               </button>
               <button
                 className="btn btn-outline btn-sm"
                 onClick={() => handlePushIntegration('gis')}
-                disabled={isPushingGis}
+                disabled={isPushingGis || isFieldOfficer}
+                title={isFieldOfficer ? 'Field Officers cannot push integrations.' : ''}
               >
                 {isPushingGis ? 'Connecting...' : 'Push to State GIS Portal'}
               </button>
@@ -432,7 +438,7 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
       </div>
 
       {/* Cadastral Geolocation Map Inspector */}
-      <CadastralMapPanel doc={doc} fields={doc.fields} />
+      <CadastralMapPanel doc={doc} fields={doc.extracted_fields || []} />
 
       {/* Modals */}
       <FieldModal
@@ -464,7 +470,7 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
         isOpen={isCompareModalOpen}
         onClose={() => setIsCompareModalOpen(false)}
         currentDoc={doc}
-        currentFields={doc.fields}
+        currentFields={doc.extracted_fields || []}
         duplicateMatch={suspectedMatch}
       />
     </div>

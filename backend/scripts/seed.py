@@ -75,6 +75,7 @@ def dim(t):   return _c("2",  t)
 USERS = [
     {"username": "alice",  "password": "Admin1234!", "role": "admin"},
     {"username": "bob",    "password": "Verif5678!", "role": "verifier"},
+    {"username": "carol",  "password": "FieldOfficer123!", "role": "field_officer"},
 ]
 
 DOCUMENTS = [

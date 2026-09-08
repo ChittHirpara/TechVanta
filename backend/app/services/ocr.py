@@ -111,6 +111,33 @@ _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".webp"}
 _PDF_SUFFIXES = {".pdf"}
 
 
+def _convert_pdf_to_images(path: Path, dpi: int = 150) -> list:
+    """
+    Convert PDF pages to PIL Images.
+    Tries pdf2image (poppler) first; if poppler is not installed, falls back
+    to pymupdf (fitz) which renders PDF pages natively without external binaries.
+    """
+    try:
+        from pdf2image import convert_from_path
+        return convert_from_path(str(path), dpi=dpi)
+    except Exception as e_pdf2img:
+        try:
+            import fitz
+            from PIL import Image
+            doc = fitz.open(str(path))
+            pages = []
+            for page in doc:
+                pix = page.get_pixmap(dpi=dpi)
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                pages.append(img)
+            return pages
+        except Exception as e_fitz:
+            raise RuntimeError(
+                f"PDF to image conversion failed. Neither poppler (pdf2image) nor PyMuPDF (fitz) succeeded. "
+                f"pdf2image error: {e_pdf2img}; fitz error: {e_fitz}"
+            ) from e_fitz
+
+
 class TesseractProvider(OCRProvider):
     """
     OCR via Tesseract (pytesseract wrapper).
@@ -183,10 +210,8 @@ class TesseractProvider(OCRProvider):
         )
 
     def _extract_from_pdf(self, path: Path) -> OCRResult:
-        from pdf2image import convert_from_path
-
         log.info("Converting PDF '%s' to images at %d DPI …", path.name, self.pdf_dpi)
-        pages = convert_from_path(str(path), dpi=self.pdf_dpi)
+        pages = _convert_pdf_to_images(path, dpi=self.pdf_dpi)
         log.info("  → %d page(s) detected", len(pages))
 
         all_text_parts: list[str] = []
@@ -231,17 +256,27 @@ class TesseractProvider(OCRProvider):
 # Future provider stubs (swap in without changing calling code)
 # ---------------------------------------------------------------------------
 
+_EASYOCR_READERS: dict[str, Any] = {}
+
+
+def warm_up_ocr_models() -> None:
+    """Pre-warm configured OCR provider models during application startup."""
+    try:
+        prov = get_ocr_provider()
+        if isinstance(prov, EasyOCRProvider):
+            reader = prov._get_reader()
+            if reader:
+                log.info("[ocr] EasyOCR model weights pre-warmed and ready.")
+    except Exception as exc:
+        log.warning("[ocr] Model pre-warming warning: %s", exc)
+
+
 class EasyOCRProvider(OCRProvider):
     """
-    OCR via EasyOCR (deep-learning CRAFT text detection).
+    OCR provider backed by EasyOCR (PyTorch-based).
 
-    Advantages over Tesseract:
-    - Better handling of degraded, skewed, and low-contrast documents
-    - Multi-language support without separate language pack installation
-    - Superior performance on handwritten and mixed-script documents
-
-    Requirements:
-        pip install easyocr
+    Works without system binaries (Tesseract/Poppler), supports 80+
+    languages including Hindi and English out of the box.
 
     If ``easyocr`` is not installed, this provider transparently falls back
     to ``TesseractProvider`` with a logged warning (no crash).
@@ -258,33 +293,35 @@ class EasyOCRProvider(OCRProvider):
         """
         self.lang = lang or ["en"]
         self.pdf_dpi = pdf_dpi
-        self._reader = None   # lazy-initialised on first use
         self._fallback: TesseractProvider | None = None
 
     def _get_reader(self):
         """
-        Lazily initialise the EasyOCR reader.
+        Lazily initialise or retrieve cached EasyOCR reader.
 
         If the ``easyocr`` package is not installed, return None and let the
         caller switch to the Tesseract fallback.
         """
-        if self._reader is not None:
-            return self._reader
+        lang_key = ",".join(sorted(self.lang))
+        if lang_key in _EASYOCR_READERS:
+            return _EASYOCR_READERS[lang_key]
         try:
             import easyocr  # noqa: PLC0415 – intentional lazy import
-            self._reader = easyocr.Reader(
+            reader = easyocr.Reader(
                 self.lang,
                 gpu=False,         # safe default; set to True if CUDA is available
                 verbose=False,
             )
+            _EASYOCR_READERS[lang_key] = reader
             log.info("[easyocr] Reader initialised for languages: %s", self.lang)
+            return reader
         except ImportError:
             log.warning(
                 "[easyocr] 'easyocr' package not installed. "
                 "Falling back to TesseractProvider. "
                 "Install it with: pip install easyocr"
             )
-        return self._reader
+            return None
 
     def _get_fallback(self) -> TesseractProvider:
         """Return a cached Tesseract fallback instance."""
@@ -319,10 +356,8 @@ class EasyOCRProvider(OCRProvider):
         suffix = file_path.suffix.lower()
 
         if suffix in _PDF_SUFFIXES:
-            from pdf2image import convert_from_path
-
             log.info("[easyocr] Converting PDF '%s' to images at %d DPI …", file_path.name, self.pdf_dpi)
-            pages = convert_from_path(str(file_path), dpi=self.pdf_dpi)
+            pages = _convert_pdf_to_images(file_path, dpi=self.pdf_dpi)
             all_text_parts: list[str] = []
             all_words: list[WordConfidence] = []
 

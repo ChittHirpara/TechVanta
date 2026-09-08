@@ -5,11 +5,16 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+from pathlib import Path
+
+_ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables / .env file."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(_ENV_PATH, ".env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

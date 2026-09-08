@@ -14,13 +14,28 @@ from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import asyncio
+from contextlib import asynccontextmanager
+
 from app.api import api_router
 from app.core.config import get_settings
 from app.core.limiter import limiter, rate_limit_exceeded_handler
 from app.db.session import get_db
+from app.services.ocr import warm_up_ocr_models
 
 logger = logging.getLogger("app.main")
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI application lifespan: pre-warms OCR models at startup."""
+    logger.info("[lifespan] Pre-warming OCR model weights...")
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, warm_up_ocr_models)
+    logger.info("[lifespan] Application initialized and ready.")
+    yield
+
 
 app = FastAPI(
     title="Land Record Digitizer",
@@ -29,6 +44,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     debug=settings.debug,
+    lifespan=lifespan,
 )
 
 # ── Rate Limiter ──────────────────────────────────────────────────────────────
