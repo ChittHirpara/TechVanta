@@ -282,7 +282,7 @@ async def find_duplicates(
     from app.models.document import Document
     from app.models.extracted_field import ExtractedField
 
-    effective_threshold = threshold if threshold is not None else FUZZY_THRESHOLD()
+    effective_threshold = threshold if isinstance(threshold, (int, float)) else FUZZY_THRESHOLD()
 
     # Short-circuit: need at least one non-empty field to compare
     clean_owner  = str(owner_name).strip()  if owner_name  else ""
@@ -385,7 +385,7 @@ def find_duplicates_in_memory(
     """
     from rapidfuzz import fuzz
 
-    effective_threshold = threshold if threshold is not None else FUZZY_THRESHOLD()
+    effective_threshold = threshold if isinstance(threshold, (int, float)) else FUZZY_THRESHOLD()
     clean_owner  = str(owner_name).strip()  if owner_name  else ""
     clean_survey = str(survey_number).strip() if survey_number else ""
 

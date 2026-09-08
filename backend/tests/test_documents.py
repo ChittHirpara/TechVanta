@@ -261,6 +261,33 @@ async def test_patch_nonexistent_field(
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
+async def test_verify_blocked_by_zero_extracted_fields(
+    client: AsyncClient, verifier_token: str, db: AsyncSession
+):
+    """Verify must return 422 if a document has zero extracted fields."""
+    from app.models.document import Document, DocumentStatus
+
+    doc = Document(
+        filename="empty_doc.pdf",
+        storage_path="/tmp/empty_doc.pdf",
+        status=DocumentStatus.needs_review,
+        district="Jaipur",
+        tehsil="Sanganer",
+        village="Empty Village",
+    )
+    db.add(doc)
+    await db.commit()
+    await db.refresh(doc)
+
+    resp = await client.post(
+        f"/api/v1/documents/{doc.id}/verify",
+        headers={"Authorization": f"Bearer {verifier_token}"},
+    )
+    assert resp.status_code == 422
+    assert "zero extracted entity fields" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_verify_blocked_by_flagged_fields(
     client: AsyncClient, verifier_token: str, seeded_document: dict
 ):

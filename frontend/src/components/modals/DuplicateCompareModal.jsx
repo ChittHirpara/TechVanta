@@ -31,8 +31,8 @@ export default function DuplicateCompareModal({
   });
 
   const targetFieldMap = {};
-  if (targetDoc?.fields) {
-    targetDoc.fields.forEach((f) => {
+  if (targetDoc?.extracted_fields) {
+    targetDoc.extracted_fields.forEach((f) => {
       targetFieldMap[f.field_name] = f.value;
     });
   }
@@ -64,7 +64,11 @@ export default function DuplicateCompareModal({
               </h3>
               <div style={{ fontSize: 12, color: '#b91c1c' }}>
                 Suspected duplicate overlap detected with{' '}
-                <strong>{Math.round(duplicateMatch?.similarity_score || 85)}% token-set similarity</strong>
+                <strong>
+                  {duplicateMatch?.combined_score !== undefined && duplicateMatch?.combined_score !== null
+                    ? `${Math.round(duplicateMatch.combined_score)}% token-set similarity`
+                    : 'confidence score unavailable'}
+                </strong>
               </div>
             </div>
           </div>

@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import mimetypes
+import re
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -46,7 +47,7 @@ from app.schemas.document import (
 )
 from app.services.audit_service import write_audit
 from app.services.certificate_service import generate_certificate_html
-from app.services.dilrmp import build_dilrmp_export_payload, compute_file_sha256
+from app.services.dilrmp import build_dilrmp_export_payload, compute_file_sha256, generate_ulpin
 from app.services.pipeline import pipeline_broadcaster, process_document
 from app.services.validation import find_duplicates
 
@@ -246,6 +247,17 @@ async def public_verify_ulpin(
     Public verification endpoint that validates a land parcel ULPIN and SHA-256 seal.
     Returns authenticity status without exposing sensitive personal owner data.
     """
+    # Enforce minimum hash length and hexadecimal format to prevent brute-forcing/wildcards
+    clean_hash = file_hash.strip().lower()
+    clean_ulpin = ulpin.strip().upper()
+    if len(clean_hash) < 32 or not re.fullmatch(r"^[0-9a-f]{32,64}$", clean_hash):
+        return {
+            "status": "RECORD_NOT_FOUND_OR_PENDING",
+            "ulpin": clean_ulpin,
+            "verification_status": "UNVERIFIED",
+            "message": "Invalid cryptographic hash format or insufficient digest length.",
+        }
+
     stmt = select(Document).where(Document.status == DocumentStatus.verified)
     verified_docs = (await db.execute(stmt)).scalars().all()
 
@@ -253,16 +265,28 @@ async def public_verify_ulpin(
     for doc in verified_docs:
         try:
             h = compute_file_sha256(doc.storage_path)
-            if h.startswith(file_hash) or file_hash in h:
-                matched_doc = doc
-                break
+            if h.lower().startswith(clean_hash):
+                # Verify ULPIN matches the parcel record
+                fields_stmt = select(ExtractedField).where(ExtractedField.document_id == doc.id)
+                fields = (await db.execute(fields_stmt)).scalars().all()
+                field_map = {f.field_name: f.value for f in fields}
+                expected_ulpin = generate_ulpin(
+                    district=doc.district or field_map.get("district"),
+                    tehsil=doc.tehsil or field_map.get("tehsil"),
+                    village=doc.village or field_map.get("village"),
+                    khasra_number=field_map.get("khasra_number"),
+                    survey_number=field_map.get("survey_number"),
+                )
+                if expected_ulpin == clean_ulpin:
+                    matched_doc = doc
+                    break
         except Exception:
             continue
 
     if matched_doc:
         return {
             "status": "AUTHENTIC_VERIFIED",
-            "ulpin": ulpin,
+            "ulpin": clean_ulpin,
             "verification_status": "SEALED",
             "jurisdiction": f"{matched_doc.district or 'Rajasthan'}, {matched_doc.tehsil or ''}",
             "verified_at": matched_doc.updated_at.isoformat() if matched_doc.updated_at else None,
@@ -272,9 +296,9 @@ async def public_verify_ulpin(
 
     return {
         "status": "RECORD_NOT_FOUND_OR_PENDING",
-        "ulpin": ulpin,
+        "ulpin": clean_ulpin,
         "verification_status": "UNVERIFIED",
-        "message": "No matching sealed record found with this cryptographic digest.",
+        "message": "No matching sealed record found with this cryptographic digest and ULPIN.",
     }
 
 
@@ -469,6 +493,19 @@ async def verify_document(
 
     if doc.status == DocumentStatus.verified:
         raise HTTPException(status_code=409, detail="Document is already verified.")
+
+    # Guard: reject if document has no extracted fields at all
+    total_fields: int = (
+        await db.execute(
+            select(func.count()).where(ExtractedField.document_id == document_id)
+        )
+    ).scalar_one()
+
+    if total_fields == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Cannot verify document with zero extracted entity fields. Reprocess or extract fields first.",
+        )
 
     # Guard: reject if any field still flagged
     flagged_count: int = (

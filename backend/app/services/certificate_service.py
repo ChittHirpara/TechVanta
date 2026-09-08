@@ -84,7 +84,7 @@ def generate_certificate_html(
     )
 
     date_str = verification_date or datetime.now(timezone.utc).strftime("%d-%B-%Y %H:%M:%S UTC")
-    qr_data = public_verify_url or f"https://bhoomiscan.nic.in/verify?ulpin={ulpin}&hash={doc_hash[:16]}"
+    qr_data = public_verify_url or f"https://bhoomiscan.nic.in/verify?ulpin={ulpin}&hash={doc_hash}"
     qr_svg = _generate_svg_qr(qr_data, size=130)
     area_info = parse_area_conversions(field_map.get("plot_area"))
 
