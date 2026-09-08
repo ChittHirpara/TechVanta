@@ -7,19 +7,21 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { documentsApi } from '../api/client';
+import { getQueuedCount } from '../utils/queueDatabase';
 import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Input from '../components/common/Input';
-import Button from '../components/common/Button';
 import { colors, radius, typography, spacing } from '../theme/theme';
 
 const STATUS_FILTERS = [
-  { id: 'all', label: 'All Statuses' },
+  { id: 'all', label: 'All' },
   { id: 'needs_review', label: 'Needs Review' },
   { id: 'verified', label: 'Verified' },
   { id: 'processing', label: 'Processing' },
+  { id: 'flagged', label: 'Flagged' },
 ];
 
 const DISTRICT_FILTERS = [
@@ -39,11 +41,26 @@ export default function RegistryScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [queuedCount, setQueuedCount] = useState(0);
 
   // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [districtFilter, setDistrictFilter] = useState('All Districts');
+
+  // FAB pulse animation
+  const fabScale = React.useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(fabScale, { toValue: 1.08, duration: 900, useNativeDriver: true }),
+        Animated.timing(fabScale, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [fabScale]);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -63,22 +80,44 @@ export default function RegistryScreen({ navigation }) {
     }
   }, [statusFilter, districtFilter, search]);
 
+  const loadQueueCount = useCallback(async () => {
+    try {
+      const count = await getQueuedCount();
+      setQueuedCount(count);
+    } catch {
+      // silently ignore — DB may not be ready
+    }
+  }, []);
+
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+    loadQueueCount();
+  }, [fetchDocuments, loadQueueCount]);
+
+  // Refresh queue count whenever the screen is focused
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadQueueCount();
+      fetchDocuments();
+    });
+    return unsubscribe;
+  }, [navigation, loadQueueCount, fetchDocuments]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchDocuments();
+    loadQueueCount();
   };
 
   const renderItem = ({ item }) => (
     <Card style={styles.recordCard}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1, marginRight: spacing.xs }}>
-          <Text style={styles.docTitle}>{item.title || `Land Record #${item.id}`}</Text>
+          <Text style={styles.docTitle} numberOfLines={1}>
+            {item.title || `Land Record #${item.id}`}
+          </Text>
           <Text style={styles.docSub}>
-            ID #{item.id} • District: {item.district || 'N/A'}
+            #{item.id} · {item.district || 'N/A'}
           </Text>
         </View>
         <Badge status={item.status} />
@@ -86,8 +125,7 @@ export default function RegistryScreen({ navigation }) {
 
       <View style={styles.metaRow}>
         <Text style={styles.metaText}>
-          📅 Ingested:{' '}
-          {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
+          📅 {item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN') : 'Recent'}
         </Text>
         <Text style={styles.metaText}>
           👤 {item.uploaded_by_user?.username || 'Field Officer'}
@@ -95,110 +133,115 @@ export default function RegistryScreen({ navigation }) {
       </View>
 
       <View style={styles.cardActions}>
-        <Button
-          title="Audit Trail"
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.actionBtnOutline]}
           onPress={() => navigation.navigate('Audit', { documentId: item.id })}
-          variant="outline"
-          style={{ flex: 1, marginRight: spacing.xs, minHeight: 38 }}
-          textStyle={{ fontSize: typography.sizes.xs }}
-        />
-        <Button
-          title="Review & Verify"
+          activeOpacity={0.75}
+        >
+          <Text style={styles.actionBtnOutlineText}>Audit Trail</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.actionBtnPrimary]}
           onPress={() => navigation.navigate('Review', { documentId: item.id })}
-          variant="saffron"
-          style={{ flex: 1, marginLeft: spacing.xs, minHeight: 38 }}
-          textStyle={{ fontSize: typography.sizes.xs }}
-        />
+          activeOpacity={0.75}
+        >
+          <Text style={styles.actionBtnPrimaryText}>View Details</Text>
+        </TouchableOpacity>
       </View>
     </Card>
   );
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.filterSection}>
-        <Text style={styles.screenTitle}>Sovereign Land Registry</Text>
-        <Text style={styles.screenSub}>Search and verify official state land records</Text>
-
-        <Input
-          value={search}
-          onChangeText={setSearch}
-          placeholder="🔍 Search owner name, Khasra, title or ID..."
-          style={{ marginBottom: spacing.xs }}
-        />
-
-        {/* Status Filter Chips */}
-        <FlatList
-          horizontal
-          data={STATUS_FILTERS}
-          keyExtractor={(item) => item.id}
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipScroll}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                statusFilter === item.id && styles.chipActive,
-              ]}
-              onPress={() => setStatusFilter(item.id)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  statusFilter === item.id && styles.chipTextActive,
-                ]}
-              >
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
-
-        {/* District Filter Chips */}
-        <FlatList
-          horizontal
-          data={DISTRICT_FILTERS}
-          keyExtractor={(item) => item}
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipScroll}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                districtFilter === item && styles.chipActiveNavy,
-              ]}
-              onPress={() => setDistrictFilter(item)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  districtFilter === item && styles.chipTextActive,
-                ]}
-              >
-                {item}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
+  const ListHeader = () => (
+    <View style={styles.filterSection}>
+      <View style={styles.titleRow}>
+        <View>
+          <Text style={styles.screenTitle}>Sovereign Land Registry</Text>
+          <Text style={styles.screenSub}>Status tracking for your submissions</Text>
+        </View>
+        {queuedCount > 0 && (
+          <TouchableOpacity
+            style={styles.queueBadge}
+            onPress={() => navigation.navigate('Capture')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.queueBadgeText}>{queuedCount} queued</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
+      <Input
+        value={search}
+        onChangeText={setSearch}
+        placeholder="🔍 Search owner, Khasra no., title..."
+        style={{ marginBottom: spacing.xs, marginTop: spacing.xs }}
+      />
+
+      {/* Status Filter Chips */}
+      <FlatList
+        horizontal
+        data={STATUS_FILTERS}
+        keyExtractor={(item) => item.id}
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipScroll}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[styles.chip, statusFilter === item.id && styles.chipActiveSaffron]}
+            onPress={() => setStatusFilter(item.id)}
+          >
+            <Text style={[styles.chipText, statusFilter === item.id && styles.chipTextActive]}>
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        )}
+      />
+
+      {/* District Filter Chips */}
+      <FlatList
+        horizontal
+        data={DISTRICT_FILTERS}
+        keyExtractor={(item) => item}
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipScroll}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[styles.chip, districtFilter === item && styles.chipActiveNavy]}
+            onPress={() => setDistrictFilter(item)}
+          >
+            <Text style={[styles.chipText, districtFilter === item && styles.chipTextActive]}>
+              {item}
+            </Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
       {error ? (
-        <Card style={styles.errorCard}>
+        <View style={styles.errorBanner}>
           <Text style={styles.errorText}>⚠️ {error}</Text>
-          <Button title="Retry" onPress={fetchDocuments} variant="outline" style={{ marginTop: spacing.sm }} />
-        </Card>
+          <TouchableOpacity onPress={fetchDocuments}>
+            <Text style={styles.errorRetry}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       ) : null}
 
       {loading && !refreshing ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.govNavy600} />
-          <Text style={styles.loadingText}>Fetching registry records...</Text>
-        </View>
+        <>
+          <ListHeader />
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={colors.govNavy600} />
+            <Text style={styles.loadingText}>Fetching registry records…</Text>
+          </View>
+        </>
       ) : (
         <FlatList
           data={documents}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          ListHeaderComponent={<ListHeader />}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -209,14 +252,30 @@ export default function RegistryScreen({ navigation }) {
           }
           ListEmptyComponent={
             <Card style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No matching land records found.</Text>
+              <Text style={styles.emptyIcon}>📋</Text>
+              <Text style={styles.emptyTitle}>No records found</Text>
               <Text style={styles.emptySub}>
-                Try adjusting your search query or status/district filters.
+                Adjust your filters or pull down to refresh.{'\n'}
+                Tap the{' '}
+                <Text style={{ color: colors.govNavy700, fontWeight: '700' }}>📷 Capture</Text>
+                {' '}button to submit a new document.
               </Text>
             </Card>
           }
         />
       )}
+
+      {/* Floating Action Button — Capture new document */}
+      <Animated.View style={[styles.fabWrap, { transform: [{ scale: fabScale }] }]}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => navigation.navigate('Capture')}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.fabIcon}>📷</Text>
+          <Text style={styles.fabLabel}>Capture</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
@@ -226,26 +285,44 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bgPage,
   },
+
+  /* ── Filter header ── */
   filterSection: {
     backgroundColor: colors.white,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderCard,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
   screenTitle: {
-    fontSize: typography.sizes.xl,
+    fontSize: typography.sizes.lg,
     fontWeight: typography.weights.bold,
     color: colors.govNavy900,
   },
   screenSub: {
     fontSize: typography.sizes.xs,
-    color: colors.slate600,
-    marginBottom: spacing.sm,
+    color: colors.slate500,
   },
-  chipScroll: {
-    marginTop: 4,
-    marginBottom: 4,
+  queueBadge: {
+    backgroundColor: colors.saffron600,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    marginTop: 2,
   },
+  queueBadgeText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: typography.weights.bold,
+  },
+  chipScroll: { marginTop: 4, marginBottom: 2 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 5,
@@ -255,51 +332,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginRight: 6,
   },
-  chipActive: {
-    backgroundColor: colors.saffron600,
-    borderColor: colors.saffron600,
-  },
-  chipActiveNavy: {
-    backgroundColor: colors.govNavy900,
-    borderColor: colors.govNavy900,
-  },
-  chipText: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate700,
-    fontWeight: typography.weights.medium,
-  },
-  chipTextActive: {
-    color: colors.white,
-    fontWeight: typography.weights.bold,
-  },
-  listContent: {
-    padding: spacing.md,
-    paddingBottom: spacing.xxl,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  loadingText: {
-    marginTop: spacing.md,
-    color: colors.slate600,
-    fontSize: typography.sizes.sm,
-  },
-  errorCard: {
-    margin: spacing.md,
+  chipActiveSaffron: { backgroundColor: colors.saffron600, borderColor: colors.saffron600 },
+  chipActiveNavy: { backgroundColor: colors.govNavy900, borderColor: colors.govNavy900 },
+  chipText: { fontSize: 12, color: colors.slate700, fontWeight: typography.weights.medium },
+  chipTextActive: { color: colors.white, fontWeight: typography.weights.bold },
+
+  /* ── List ── */
+  listContent: { padding: spacing.md, paddingBottom: 100 },
+
+  /* ── States ── */
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  loadingText: { marginTop: spacing.md, color: colors.slate600, fontSize: typography.sizes.sm },
+  errorBanner: {
     backgroundColor: colors.rose50,
-    borderColor: colors.rose600,
+    borderBottomWidth: 1,
+    borderColor: colors.rose300,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
-  errorText: {
-    color: colors.rose800,
-    fontSize: typography.sizes.sm,
+  errorText: { color: colors.rose800, fontSize: typography.sizes.xs, flex: 1 },
+  errorRetry: {
+    color: colors.govNavy600,
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.bold,
+    marginLeft: spacing.sm,
   },
-  recordCard: {
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-  },
+
+  /* ── Cards ── */
+  recordCard: { marginBottom: spacing.sm, padding: spacing.md },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -311,34 +374,36 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.govNavy900,
   },
-  docSub: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate500,
-    marginTop: 2,
-  },
+  docSub: { fontSize: typography.sizes.xs, color: colors.slate500, marginTop: 2 },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingVertical: spacing.xs,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: colors.slate100,
     marginVertical: spacing.xs,
   },
-  metaText: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate600,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    marginTop: spacing.xs,
-  },
-  emptyCard: {
+  metaText: { fontSize: typography.sizes.xs, color: colors.slate600 },
+  cardActions: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: radius.md,
     alignItems: 'center',
-    padding: spacing.xl,
-    marginTop: spacing.lg,
   },
+  actionBtnOutline: { borderWidth: 1, borderColor: colors.govNavy300 },
+  actionBtnOutlineText: {
+    fontSize: 12,
+    color: colors.govNavy700,
+    fontWeight: typography.weights.semibold,
+  },
+  actionBtnPrimary: { backgroundColor: colors.govNavy900 },
+  actionBtnPrimaryText: { fontSize: 12, color: colors.white, fontWeight: typography.weights.bold },
+
+  /* ── Empty ── */
+  emptyCard: { alignItems: 'center', padding: spacing.xl, marginTop: spacing.lg },
+  emptyIcon: { fontSize: 36, marginBottom: spacing.sm },
   emptyTitle: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.bold,
@@ -349,5 +414,36 @@ const styles = StyleSheet.create({
     color: colors.slate500,
     textAlign: 'center',
     marginTop: 4,
+    lineHeight: 18,
+  },
+
+  /* ── FAB ── */
+  fabWrap: {
+    position: 'absolute',
+    bottom: 28,
+    right: 22,
+    shadowColor: colors.govNavy900,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  fab: {
+    backgroundColor: colors.govNavy900,
+    borderRadius: 32,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 2,
+    borderColor: colors.saffron500,
+  },
+  fabIcon: { fontSize: 20 },
+  fabLabel: {
+    color: colors.white,
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    letterSpacing: 0.5,
   },
 });

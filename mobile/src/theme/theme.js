@@ -11,6 +11,7 @@ export const colors = {
   govNavy800: '#133458',
   govNavy700: '#1b497b',
   govNavy600: '#2563eb',
+  govNavy300: '#6b93c4',
   govNavy100: '#e2eaf4',
   govNavy50: '#f0f4f9',
 
@@ -47,6 +48,7 @@ export const colors = {
   rose800: '#991b1b',
   rose700: '#b91c1c',
   rose600: '#dc2626',
+  rose300: '#fca5a5',
   rose100: '#fee2e2',
   rose50: '#fef2f2',
 
