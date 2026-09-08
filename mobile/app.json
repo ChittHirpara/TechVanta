@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "BhoomiScan AI",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -24,18 +24,17 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#0b1f3a",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
-      "typedRoutes": true,
       "reactCompiler": true
     }
   }
