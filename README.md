@@ -23,7 +23,7 @@ Across India's revenue departments, over **140 million legacy land records** (Ja
 
 ### 🌟 The Solution: TechVanta (BhoomiScan AI)
 
-**TechVanta** is a production-grade, state-of-the-art land record digitization and verification engine built for the **Smart India Hackathon (SIH)**. It combines **multimodal computer vision (EasyOCR + Tesseract)**, **large language models (GPT-4o, Gemini 1.5, Ollama)**, **fuzzy duplicate graph detection**, and an **immutable cryptographic audit trail** compliant with the National Land Records Modernization Programme (**DILRMP**).
+**BhoomiScan AI** is a production-grade, state-of-the-art land record digitization and verification engine built for the **Smart India Hackathon (SIH)**. It combines **multimodal computer vision (EasyOCR + Tesseract)**, **large language models (GPT-4o, Gemini 1.5, Ollama)**, **fuzzy duplicate graph detection**, and an **immutable cryptographic audit trail** compliant with the National Land Records Modernization Programme (**DILRMP**).
 
 ---
 
