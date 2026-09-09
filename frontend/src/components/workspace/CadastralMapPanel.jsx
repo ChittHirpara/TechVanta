@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconMap, IconCheck, IconExternal } from '../common/Icons';
 
 export default function CadastralMapPanel({ doc, fields = [] }) {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeLayer, setActiveLayer] = useState('cadastral'); // 'cadastral' | 'satellite'
 
@@ -50,10 +52,10 @@ export default function CadastralMapPanel({ doc, fields = [] }) {
           </div>
           <div>
             <strong style={{ fontSize: 13, color: 'var(--gov-navy-900)' }}>
-              Cadastral GIS & Geolocation Boundary Inspector
+              {t('cadastral.panel_title')}
             </strong>
             <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--slate-500)' }}>
-              {village}, {tehsil} ({district}) • Survey #{surveyNumber}
+              {village}, {tehsil} ({district}) • {t('cadastral.survey_prefix', { number: surveyNumber })}
             </span>
           </div>
         </div>
@@ -79,7 +81,7 @@ export default function CadastralMapPanel({ doc, fields = [] }) {
               setIsExpanded(!isExpanded);
             }}
           >
-            {isExpanded ? 'Collapse GIS Panel ▲' : 'Expand GIS Map ▼'}
+            {isExpanded ? t('cadastral.collapse_btn') : t('cadastral.expand_btn')}
           </button>
         </div>
       </div>
@@ -89,7 +91,7 @@ export default function CadastralMapPanel({ doc, fields = [] }) {
         <div style={{ padding: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ fontSize: 12, color: 'var(--slate-600)' }}>
-              <strong>Cadastral Layer:</strong> DILRMP Geo-referenced Khasra Parcel #{khasraNumber} (Declared Area: {plotArea})
+              <strong>{t('cadastral.cadastral_layer')}</strong> {t('cadastral.parcel_declared', { khasraNumber, plotArea })}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button
@@ -97,14 +99,14 @@ export default function CadastralMapPanel({ doc, fields = [] }) {
                 style={{ padding: '3px 8px', fontSize: 11 }}
                 onClick={() => setActiveLayer('cadastral')}
               >
-                Cadastral Grid
+                {t('cadastral.grid_view')}
               </button>
               <button
                 className={`btn btn-sm ${activeLayer === 'satellite' ? 'btn-primary' : 'btn-outline'}`}
                 style={{ padding: '3px 8px', fontSize: 11 }}
                 onClick={() => setActiveLayer('satellite')}
               >
-                Satellite Hybrid
+                {t('cadastral.satellite_view')}
               </button>
             </div>
           </div>
@@ -152,7 +154,7 @@ export default function CadastralMapPanel({ doc, fields = [] }) {
                 strokeDasharray="4,4"
               />
               <text x="250" y="95" fill={activeLayer === 'satellite' ? '#94a3b8' : '#64748b'} fontSize="11" fontFamily="monospace">
-                Parcel 450
+                {t('cadastral.parcel_label', { number: 450 })}
               </text>
 
               <polygon
@@ -163,7 +165,7 @@ export default function CadastralMapPanel({ doc, fields = [] }) {
                 strokeDasharray="4,4"
               />
               <text x="590" y="125" fill={activeLayer === 'satellite' ? '#94a3b8' : '#64748b'} fontSize="11" fontFamily="monospace">
-                Parcel 452
+                {t('cadastral.parcel_label', { number: 452 })}
               </text>
 
               {/* Targeted Active Parcel Boundary (Highlighted in Emerald/Gold) */}
@@ -205,7 +207,7 @@ export default function CadastralMapPanel({ doc, fields = [] }) {
                 backdropFilter: 'blur(4px)',
               }}
             >
-              Survey Scale: 1:1000 • Datum: WGS-84 • DILRMP Geo-tag Verified
+              {t('cadastral.datum_verified')}
             </div>
           </div>
         </div>

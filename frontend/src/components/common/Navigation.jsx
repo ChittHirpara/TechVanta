@@ -1,7 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconDashboard, IconFolder, IconUpload, IconShield } from './Icons';
 
 export default function Navigation({ activeTab, onTabChange, docCount, currentDocId }) {
+  const { t } = useTranslation();
+
   return (
     <nav className="portal-nav">
       <button
@@ -9,7 +12,7 @@ export default function Navigation({ activeTab, onTabChange, docCount, currentDo
         onClick={() => onTabChange('dashboard')}
       >
         <IconDashboard size={15} />
-        Operations Dashboard
+        {t('nav.dashboard')}
       </button>
 
       <button
@@ -17,7 +20,7 @@ export default function Navigation({ activeTab, onTabChange, docCount, currentDo
         onClick={() => onTabChange('documents')}
       >
         <IconFolder size={15} />
-        Land Record Registry
+        {t('nav.registry')}
         <span className="nav-count-badge">{docCount || 0}</span>
       </button>
 
@@ -26,7 +29,7 @@ export default function Navigation({ activeTab, onTabChange, docCount, currentDo
         onClick={() => onTabChange('upload')}
       >
         <IconUpload size={15} />
-        Ingest Deed
+        {t('nav.ingestion')}
       </button>
 
       {currentDocId && (
@@ -35,7 +38,7 @@ export default function Navigation({ activeTab, onTabChange, docCount, currentDo
           onClick={() => onTabChange('workspace')}
         >
           <IconShield size={15} />
-          Verification Workspace #{currentDocId}
+          {t('nav.workspace', { id: currentDocId })}
         </button>
       )}
     </nav>

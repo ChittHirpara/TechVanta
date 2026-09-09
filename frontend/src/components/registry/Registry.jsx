@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { documentsApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { IconSearch, IconUpload, IconShield, IconRefresh } from '../common/Icons';
 
 export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUpdate }) {
+  const { t } = useTranslation();
   const { isFieldOfficer } = useAuth();
 
   const [documents, setDocuments] = useState([]);
@@ -63,14 +65,14 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
     <div className="card">
       <div className="card-header">
         <div>
-          <h2 className="card-title">Land Record Document Registry</h2>
+          <h2 className="card-title">{t('registry.title')}</h2>
           <div className="card-subtitle">
-            Central sovereign registry of scanned title deeds, 7/12 extracts, and cadastral records
+            {t('registry.subtitle')}
           </div>
         </div>
         <button className="btn btn-primary btn-sm" onClick={onNavigateToUpload}>
           <IconUpload size={13} />
-          Ingest New Document
+          {t('registry.ingest_new')}
         </button>
       </div>
 
@@ -94,7 +96,7 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
             type="text"
             className="form-control"
             style={{ paddingLeft: 32 }}
-            placeholder="Search by filename, district, or survey #..."
+            placeholder={t('registry.search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -106,11 +108,11 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="">All Statuses</option>
-            <option value="needs_review">Needs Review</option>
-            <option value="verified">Verified</option>
-            <option value="processing">Processing</option>
-            <option value="uploaded">Uploaded</option>
+            <option value="">{t('registry.filter_all')}</option>
+            <option value="needs_review">{t('registry.status.needs_review')}</option>
+            <option value="verified">{t('registry.status.verified')}</option>
+            <option value="processing">{t('registry.status.processing')}</option>
+            <option value="uploaded">{t('registry.status.uploaded')}</option>
           </select>
         </div>
 
@@ -119,7 +121,7 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
             <input
               type="text"
               className="form-control"
-              placeholder="Filter district..."
+              placeholder={t('registry.filter_district')}
               value={districtFilter}
               onChange={(e) => setDistrictFilter(e.target.value)}
             />
@@ -128,7 +130,7 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
 
         <button className="btn btn-outline btn-sm" onClick={handleResetFilters}>
           <IconRefresh size={12} />
-          Reset
+          {t('registry.btn_reset')}
         </button>
       </div>
 
@@ -143,25 +145,25 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
             <table className="gov-table">
               <thead>
                 <tr>
-                  <th style={{ width: 90 }}>Record ID</th>
-                  <th>Document Filename</th>
-                  <th>Jurisdiction (District / Tehsil / Village)</th>
-                  <th>Uploaded Date</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
+                  <th style={{ width: 90 }}>{t('registry.columns.doc_id')}</th>
+                  <th>{t('registry.columns.filename')}</th>
+                  <th>{t('registry.columns.jurisdiction')}</th>
+                  <th>{t('registry.columns.uploaded_date')}</th>
+                  <th>{t('registry.columns.status')}</th>
+                  <th style={{ textAlign: 'right' }}>{t('registry.columns.action')}</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', padding: 36, color: 'var(--slate-500)' }}>
-                      Loading land records registry...
+                      {t('registry.loading')}
                     </td>
                   </tr>
                 ) : documents.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', padding: 36, color: 'var(--slate-500)' }}>
-                      No land records found matching the active filters.
+                      {t('registry.empty')}
                     </td>
                   </tr>
                 ) : (
@@ -192,7 +194,7 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
                         <td>
                           <span className={`badge badge-${doc.status}`}>
                             <span className={`status-dot status-dot-${doc.status}`} />
-                            {doc.status.replace('_', ' ')}
+                            {t(`registry.status.${doc.status}`) || doc.status.replace('_', ' ')}
                           </span>
                         </td>
                         <td style={{ textAlign: 'right' }}>
@@ -201,7 +203,7 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
                             onClick={() => onSelectDoc(doc.id)}
                           >
                             <IconShield size={12} />
-                            Workspace
+                            {doc.status === 'verified' ? t('registry.actions.view') : t('registry.actions.verify')}
                           </button>
                         </td>
                       </tr>
@@ -233,14 +235,14 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
               disabled={page <= 1 || isLoading}
               onClick={() => fetchDocuments(page - 1)}
             >
-              ← Previous
+              {t('registry.prev_page')}
             </button>
             <button
               className="btn btn-outline btn-sm"
               disabled={endRecord >= total || isLoading}
               onClick={() => fetchDocuments(page + 1)}
             >
-              Next →
+              {t('registry.next_page')}
             </button>
           </div>
         </div>

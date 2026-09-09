@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './context/AuthContext';
 import GovStrip from './components/common/GovStrip';
 import Header from './components/common/Header';
@@ -12,7 +13,12 @@ import Workspace from './components/workspace/Workspace';
 import { IconEmblem, IconLock, IconShield, IconCheck } from './components/common/Icons';
 
 export default function App() {
+  const { t } = useTranslation();
   const { isAuthenticated, isLoading } = useAuth();
+
+  useEffect(() => {
+    document.title = t('app.document_title');
+  }, [t]);
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentDocId, setCurrentDocId] = useState(null);
@@ -70,10 +76,10 @@ export default function App() {
             <IconEmblem size={28} />
           </div>
           <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>
-            Initializing BhoomiScan AI Portal...
+            {t('app.loading_portal')}
           </div>
           <div style={{ fontSize: 12, color: 'var(--slate-400)', marginTop: 6 }} className="font-mono">
-            Verifying sovereign security credentials &amp; endpoints
+            {t('app.loading_subtext')}
           </div>
         </div>
       </div>
@@ -101,8 +107,8 @@ export default function App() {
             <div className="gov-alert gov-alert-info">
               <IconShield size={16} />
               <div>
-                <strong>Department of Land Resources &amp; Revenue Administration:</strong>
-                {' '}Authorized departmental access required. Please sign in to access jurisdiction records, verification queues, and GIS push integrations.
+                <strong>{t('app.dept_banner_title')}</strong>
+                {' '}{t('app.dept_banner_desc')}
               </div>
             </div>
 
@@ -118,20 +124,20 @@ export default function App() {
                 <div className="card-header">
                   <h2 className="card-title">
                     <IconLock size={15} />
-                    Official Departmental Access
+                    {t('app.dept_access_title')}
                   </h2>
                 </div>
                 <div className="card-body">
                   <p style={{ color: 'var(--slate-600)', marginBottom: 20, fontSize: 13 }}>
-                    Access role-governed verification queues for Field Officers (Patwaris), Verifying Officers (Tehsildars), and District Administrators.
+                    {t('app.dept_access_desc')}
                   </p>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     <button className="btn btn-primary" onClick={() => handleOpenAuth('login')}>
                       <IconLock size={13} />
-                      Sign In to Workspace
+                      {t('app.sign_in_workspace')}
                     </button>
                     <button className="btn btn-saffron" onClick={() => handleOpenAuth('register')}>
-                      New Officer Registration
+                      {t('app.new_officer_reg')}
                     </button>
                   </div>
                 </div>
@@ -141,26 +147,26 @@ export default function App() {
                 <div className="card-header">
                   <h2 className="card-title">
                     <IconShield size={15} />
-                    System Architecture &amp; Standards
+                    {t('app.architecture_title')}
                   </h2>
                 </div>
                 <div className="card-body" style={{ fontSize: 13, color: 'var(--slate-700)' }}>
                   <ul style={{ paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <li style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <IconCheck size={14} className="text-emerald-600 mt-0.5" />
-                      <span><strong>Multimodal OCR:</strong> EasyOCR deep learning + Tesseract cascade for Indic scripts.</span>
+                      <span><strong>{t('app.ocr_title')}</strong> {t('app.ocr_desc')}</span>
                     </li>
                     <li style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <IconCheck size={14} className="text-emerald-600 mt-0.5" />
-                      <span><strong>DILRMP 2.0:</strong> Automated 14-digit ULPIN allocation &amp; cadastral mapping.</span>
+                      <span><strong>{t('app.dilrmp_title')}</strong> {t('app.dilrmp_desc')}</span>
                     </li>
                     <li style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <IconCheck size={14} className="text-emerald-600 mt-0.5" />
-                      <span><strong>Cryptographic Seal:</strong> SHA-256 tamper-evident integrity hashing.</span>
+                      <span><strong>{t('app.crypto_title')}</strong> {t('app.crypto_desc')}</span>
                     </li>
                     <li style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                       <IconCheck size={14} className="text-emerald-600 mt-0.5" />
-                      <span><strong>Fraud Shield:</strong> Token-set fuzzy duplicate record detection against registry.</span>
+                      <span><strong>{t('app.fraud_title')}</strong> {t('app.fraud_desc')}</span>
                     </li>
                   </ul>
                 </div>
@@ -218,9 +224,9 @@ export default function App() {
 
       {/* Institutional Footer */}
       <footer className="gov-footer">
-        <div>BhoomiScan AI • National Land Record Modernization &amp; AI Verification Engine</div>
+        <div>{t('app.footer_line1')}</div>
         <div style={{ marginTop: 4, fontSize: 11, opacity: 0.8 }} className="font-mono">
-          Smart India Hackathon (SIH) Innovation • GIGW &amp; DILRMP 2.0 Compliant
+          {t('app.footer_line2')}
         </div>
       </footer>
     </>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { documentsApi, integrationsApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import FieldModal from '../modals/FieldModal';
@@ -20,6 +21,7 @@ import {
 } from '../common/Icons';
 
 export default function Workspace({ docId, onBackToRegistry, onReprocess, showToast }) {
+  const { t } = useTranslation();
   const { token, isFieldOfficer } = useAuth();
 
   const [doc, setDoc] = useState(null);
@@ -75,10 +77,10 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
     setIsVerifying(true);
     try {
       await documentsApi.verify(docId);
-      showToast?.(`Document #${docId} verified & cryptographically sealed!`, 'success');
+      showToast?.(t('workspace.toasts.verified', { docId }), 'success');
       fetchWorkspaceData();
     } catch (err) {
-      showToast?.(`Verification blocked: ${err.message}`, 'error');
+      showToast?.(t('workspace.toasts.verify_blocked', { err: err.message }), 'error');
     } finally {
       setIsVerifying(false);
     }
@@ -92,10 +94,10 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
     setIsReprocessing(true);
     try {
       await documentsApi.reprocess(docId);
-      showToast?.(`Reprocessing triggered for Document #${docId}.`, 'info');
+      showToast?.(t('workspace.toasts.reprocess_triggered', { docId }), 'info');
       onReprocess?.(docId, doc?.filename);
     } catch (err) {
-      showToast?.(`Reprocess request failed: ${err.message}`, 'error');
+      showToast?.(t('workspace.toasts.reprocess_failed', { err: err.message }), 'error');
     } finally {
       setIsReprocessing(false);
     }
@@ -111,9 +113,9 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
         ? await integrationsApi.pushLrms(docId)
         : await integrationsApi.pushGis(docId);
 
-      showToast?.(`Pushed to ${res.system}! Reference: ${res.reference_id} (${res.status})`, 'success');
+      showToast?.(t('workspace.toasts.pushed', { system: res.system, reference_id: res.reference_id, status: res.status }), 'success');
     } catch (err) {
-      showToast?.(`Gateway push failed: ${err.message}`, 'error');
+      showToast?.(t('workspace.toasts.push_failed', { err: err.message }), 'error');
     } finally {
       if (isLrms) setIsPushingLrms(false);
       else setIsPushingGis(false);
@@ -136,7 +138,7 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
           <div>{error || 'Document not found.'}</div>
         </div>
         <button className="btn btn-outline" onClick={onBackToRegistry}>
-          ← Back to Registry
+          {t('workspace.btn_back_registry')}
         </button>
       </div>
     );
@@ -167,44 +169,44 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button className="btn btn-outline btn-sm" onClick={onBackToRegistry}>
-            ← Back to Registry
+            {t('workspace.btn_back_registry')}
           </button>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--gov-navy-900)' }}>
             Record #{doc.id}
           </h2>
           <span className={`badge badge-${doc.status}`}>
             <span className={`status-dot status-dot-${doc.status}`} />
-            {doc.status.replace('_', ' ')}
+            {t(`registry.status.${doc.status}`) || doc.status.replace('_', ' ')}
           </span>
         </div>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn btn-outline btn-sm" onClick={() => setIsAuditModalOpen(true)}>
             <IconHistory size={13} />
-            Audit Trail
+            {t('workspace.tabs.audit_trail')}
           </button>
           <button className="btn btn-outline btn-sm" onClick={() => setIsDilrmpModalOpen(true)}>
             <IconCopy size={13} />
-            DILRMP 2.0 Export
+            {t('workspace.btn_dilrmp_export')}
           </button>
           <a
             className="btn btn-outline btn-sm"
             href={documentsApi.getCertificateUrl(docId, token)}
             target="_blank"
             rel="noreferrer"
-            title="View and print official sovereign verification certificate with tamper-evident QR seal"
+            title={t('workspace.labels.certificate_banner')}
           >
             <IconFile size={13} />
-            Sovereign Certificate
+            {t('workspace.btn_certificate')}
           </a>
           <button
             className="btn btn-outline btn-sm"
             onClick={handleReprocess}
             disabled={isReprocessing || isFieldOfficer}
-            title={isFieldOfficer ? 'Field Officers cannot reprocess documents.' : ''}
+            title={isFieldOfficer ? t('workspace.tooltips.reprocess_blocked') : ''}
           >
             <IconRefresh size={13} className={isReprocessing ? 'animate-spin' : ''} />
-            {isReprocessing ? 'Enqueueing...' : 'Reprocess'}
+            {isReprocessing ? t('workspace.connecting') : t('workspace.btn_reprocess')}
           </button>
           <button
             className="btn btn-success btn-sm"
@@ -212,14 +214,14 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
             disabled={doc.status === 'verified' || isVerifying || isFieldOfficer}
             title={
               isFieldOfficer
-                ? 'Only Verifying Officers and Admins may verify documents.'
+                ? t('workspace.tooltips.verify_blocked')
                 : doc.status === 'verified'
-                ? 'Document is already verified.'
+                ? t('workspace.tooltips.already_verified')
                 : ''
             }
           >
             <IconCheck size={14} />
-            {isVerifying ? 'Signing...' : doc.status === 'verified' ? 'Verified & Sealed' : 'Sign & Verify Record'}
+            {isVerifying ? t('workspace.btn_signing') : doc.status === 'verified' ? t('workspace.btn_verified') : t('workspace.btn_verify')}
           </button>
         </div>
       </div>
@@ -229,7 +231,7 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
         <div className="gov-alert gov-alert-danger">
           <IconAlert size={18} />
           <div>
-            <strong>Fraud Shield Warning — Potential Duplicate Land Record Detected:</strong>
+            <strong>{t('workspace.labels.fraud_shield_warning')}</strong>
             {' '}This parcel closely matches existing Document #{suspectedMatch.document_id} (
             {suspectedMatch.owner_name ? `Owner: ${suspectedMatch.owner_name}, ` : ''}
             Survey #{suspectedMatch.survey_number || 'N/A'}) with{' '}
@@ -259,7 +261,7 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
               className="btn btn-header-outline btn-sm"
             >
               <IconDownload size={13} />
-              Download Original
+              {t('workspace.btn_download_original')}
             </a>
           </div>
 
@@ -269,7 +271,7 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
             ) : (
               <iframe
                 src={fileUrl}
-                title="Scanned Deed Document Viewer"
+                title={t('workspace.viewer_title')}
                 style={{ width: '100%', height: '100%', border: 'none' }}
               />
             )}
@@ -283,22 +285,22 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
             <div className="card-header" style={{ padding: '12px 16px' }}>
               <h3 className="card-title" style={{ fontSize: 13 }}>
                 <IconShield size={14} />
-                Cryptographic Integrity & SHA-256 Seal
+                {t('workspace.labels.crypto_seal')}
               </h3>
               <span className="badge badge-verified">
                 <span className="status-dot status-dot-verified" />
-                SECURED_VERIFIED
+                {t('workspace.labels.status_secured_verified')}
               </span>
             </div>
             <div className="card-body" style={{ padding: '12px 16px', fontSize: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center' }}>
-                <span style={{ color: 'var(--slate-500)' }}>SHA-256 File Seal:</span>
+                <span style={{ color: 'var(--slate-500)' }}>{t('workspace.labels.sha_seal')}</span>
                 <span className="hash-chip" title={integrity?.sha256_hash}>
                   {integrity?.sha256_hash ? `${integrity.sha256_hash.substring(0, 24)}...` : 'N/A'}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--slate-500)' }}>Jurisdiction:</span>
+                <span style={{ color: 'var(--slate-500)' }}>{t('workspace.labels.jurisdiction')}</span>
                 <strong>{jurisdiction}</strong>
               </div>
             </div>
@@ -308,9 +310,9 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
           <div className="card" style={{ marginBottom: 0, flex: 1 }}>
             <div className="card-header">
               <div>
-                <h3 className="card-title">Extracted Legal Entities & Confidence Scores</h3>
+                <h3 className="card-title">{t('workspace.extract_title')}</h3>
                 <div className="card-subtitle">
-                  Inspect extracted survey numbers, owners, and stamp details before verification
+                  {t('workspace.inspect_subtitle')}
                 </div>
               </div>
             </div>
@@ -320,18 +322,18 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
                 <table className="gov-table">
                   <thead>
                     <tr>
-                      <th>Entity Field</th>
-                      <th>Extracted Value</th>
-                      <th style={{ width: 120 }}>Confidence</th>
-                      <th>Status</th>
-                      <th style={{ textAlign: 'right' }}>Action</th>
+                      <th>{t('workspace.labels.field_identifier')}</th>
+                      <th>{t('workspace.labels.extracted_value')}</th>
+                      <th style={{ width: 120 }}>{t('workspace.labels.confidence')}</th>
+                      <th>{t('registry.columns.status')}</th>
+                      <th style={{ textAlign: 'right' }}>{t('workspace.labels.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {!doc.extracted_fields || doc.extracted_fields.length === 0 ? (
                       <tr>
                         <td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--slate-500)' }}>
-                          No entity fields extracted yet. Document may still be processing.
+                          {t('workspace.no_fields_extracted')}
                         </td>
                       </tr>
                     ) : (
@@ -368,12 +370,12 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
                               {field.is_flagged ? (
                                 <span className="badge badge-flagged">
                                   <span className="status-dot status-dot-flagged" />
-                                  Needs Review
+                                  {t('dashboard.stats.needs_review')}
                                 </span>
                               ) : (
                                 <span className="badge badge-verified">
                                   <span className="status-dot status-dot-verified" />
-                                  Verified
+                                  {t('registry.status.verified')}
                                 </span>
                               )}
                             </td>
@@ -381,14 +383,14 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
                               <button
                                 className="btn btn-outline btn-sm"
                                 disabled={isFieldOfficer}
-                                title={isFieldOfficer ? 'Field Officers cannot edit extracted fields.' : ''}
+                                title={isFieldOfficer ? t('workspace.tooltips.edit_blocked') : ''}
                                 onClick={() => {
                                   setSelectedField(field);
                                   setIsFieldModalOpen(true);
                                 }}
                               >
                                 <IconEdit size={12} />
-                                Correct
+                                {t('workspace.labels.correct_field')}
                               </button>
                             </td>
                           </tr>
@@ -406,7 +408,7 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
             <div className="card-header" style={{ padding: '12px 16px' }}>
               <h3 className="card-title" style={{ fontSize: 13 }}>
                 <IconExternal size={14} />
-                State Revenue Gateways (Mock Integrations)
+                {t('workspace.gateways_title')}
               </h3>
             </div>
             <div
@@ -417,20 +419,20 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
                 className="btn btn-outline btn-sm"
                 onClick={() => handlePushIntegration('lrms')}
                 disabled={isPushingLrms || isFieldOfficer}
-                title={isFieldOfficer ? 'Field Officers cannot push integrations.' : ''}
+                title={isFieldOfficer ? t('workspace.tooltips.push_blocked') : ''}
               >
-                {isPushingLrms ? 'Connecting...' : 'Push to State LRMS'}
+                {isPushingLrms ? t('workspace.connecting') : t('workspace.btn_push_lrms')}
               </button>
               <button
                 className="btn btn-outline btn-sm"
                 onClick={() => handlePushIntegration('gis')}
                 disabled={isPushingGis || isFieldOfficer}
-                title={isFieldOfficer ? 'Field Officers cannot push integrations.' : ''}
+                title={isFieldOfficer ? t('workspace.tooltips.push_blocked') : ''}
               >
-                {isPushingGis ? 'Connecting...' : 'Push to State GIS Portal'}
+                {isPushingGis ? t('workspace.connecting') : t('workspace.btn_push_gis')}
               </button>
               <span style={{ fontSize: 11, color: 'var(--slate-500)' }}>
-                *Official gateway for Land Records Modernization System & Cadastral GIS layers.
+                {t('workspace.gateways_disclaimer')}
               </span>
             </div>
           </div>

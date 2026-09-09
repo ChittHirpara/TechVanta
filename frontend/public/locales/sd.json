@@ -1,0 +1,300 @@
+{
+  "gov_strip": {
+    "title": "هندستان جي حڪومت",
+    "sub": "زميني وسيلن ۽ روينيو انتظاميه جو کاتو",
+    "dilrmp": "ڊجيٽل انڊيا لينڊ رڪارڊز ماڊرنائيزيشن پروگرام (DILRMP)",
+    "node_active": "خودمختيار نوڊ سرگرم",
+    "gigw": "GIGW مطابق"
+  },
+  "header": {
+    "title": "BhoomiScan AI",
+    "hindi_title": "زمينسڪن اي آءِ",
+    "tagline": "خودڪار لينڊ رڪارڊ ڊجيٽلائيزيشن، سيمينٽڪ تصديق ۽ خود مختيار گورننس",
+    "emblem_title": "نيشنل لينڊ رڪارڊ خودمختار پليٽ فارم",
+    "sign_in": "سائن ان ڪريو",
+    "sign_out": "سائن آئوٽ ڪريو",
+    "register_officer": "رجسٽري آفيسر",
+    "language": "ٻولي",
+    "roles": {
+      "admin": "منتظم",
+      "verifier": "تصديق ڪندڙ آفيسر",
+      "field_officer": "فيلڊ آفيسر"
+    },
+    "brand_name": "BhoomiScan AI",
+    "brand_subtitle": "زمينسڪن اي آءِ"
+  },
+  "nav": {
+    "dashboard": "آپريشنز ڊيش بورڊ",
+    "registry": "زمين جي رڪارڊ جي رجسٽري",
+    "ingestion": "لينڊ رڪارڊ اپ لوڊ ڪريو",
+    "workspace": "تصديق جو ڪم اسپيس #{{id}}",
+    "version": "v1.0.0"
+  },
+  "dashboard": {
+    "title": "روينيو آپريشنز ڪمانڊ سينٽر",
+    "refresh": "ميٽرڪ تازو ڪريو",
+    "jurisdiction_scoped": "تجزيا ۽ رڪارڊ في الحال توهان جي ذاتي دائري اختيار ۾ آهن ({{jurisdiction}})",
+    "stats": {
+      "total_deeds": "ڪل رجسٽرڊ ڊيڊس",
+      "total_deeds_desc": "سسٽم ۾ داخل ٿيل مجموعي عمل",
+      "needs_review": "نظرثاني جي ضرورت آهي",
+      "needs_review_desc": "گھٽ اعتماد يا تصديق جي خبرداري",
+      "verified_sealed": "تصديق ٿيل ۽ ڊجيٽل طور تي دستخط ٿيل",
+      "verified_sealed_desc": "تصديق ڪندڙ آفيسرن طرفان دستخط ٿيل",
+      "avg_confidence": "سراسري Extraction Reliability",
+      "avg_confidence_desc": "سڀني ڪڍيل اداري جي شعبن ۾",
+      "completion_rate": "مڪمل ٿيڻ جي شرح",
+      "field_officer_mode": "فيلڊ آفيسر موڊ",
+      "awaiting_audit": "آفيسر دستي آڊٽ جي انتظار ۾"
+    },
+    "district_breakdown": {
+      "title": "عدالتي ڊجيٽائيزيشن جي ترقي",
+      "subtitle": "آمدني ضلعن ۾ حقيقي وقت جي ڀڃڪڙي",
+      "district": "ضلعو",
+      "total": "ڪل رڪارڊ",
+      "verified": "تصديق ٿيل",
+      "flagged": "نظرثاني لاءِ نشان لڳل ميدان",
+      "completion": "مڪمل ٿيڻ جي شرح"
+    },
+    "pipeline_latency": {
+      "title": "سسٽم جو ڪم فلو",
+      "ocr_recognition": "او سي آر جي سڃاڻپ",
+      "field_extraction": "فيلڊ ڪڍڻ",
+      "validation_fraud": "تصديق ۽ فريب"
+    },
+    "loading_metrics": "دائري اختياري ميٽرڪ لوڊ ڪري رهيو آهي...",
+    "no_districts": "اڃان تائين ڪنهن به ضلعي جي رڪارڊ جي نشاندهي نه ڪئي وئي آهي. عدالتي پيش رفت ڏسڻ لاءِ زمين جا رڪارڊ اپ لوڊ ڪريو.",
+    "unassigned_district": "اڻ ڄاڻايل ضلعو"
+  },
+  "ingestion": {
+    "title": "اپ لوڊ ڪريو لينڊ رڪارڊ دستاويز",
+    "subtitle": "خودڪار لينڊ رڪارڊ ڊجيٽلائيزيشن، سيمينٽڪ تصديق ۽ خود مختيار گورننس",
+    "dropzone_title": "منتخب ڪرڻ لاءِ ڪلڪ ڪريو يا لينڊ رڪارڊ فائل ڳنڍڻ لاءِ ڇڪيو",
+    "dropzone_sub": "سپورٽ فارميٽ: PDF، PNG، JPG، JPEG، TIFF، WEBP (وڌ ​​۾ وڌ 25 MB)",
+    "jurisdiction_label": "دائره اختيار (ضلعو / Tehsil / ڳوٺ)",
+    "start_pipeline": "شروع ڪريو ڊاڪيومينٽ انٽيڪ ۽ او سي آر ورڪ فلو",
+    "reprocess": "ٻيهر عمل",
+    "stepper_title": "حقيقي وقت جي تصديق ورڪ فلو سرگرمي",
+    "live_status": {
+      "uploading": "اپلوڊ ۽ SHA-256",
+      "ocr": "ملٽي موڊل او سي آر",
+      "extract": "NER سيمينٽڪ فيلڊ ڪڍڻ",
+      "validate": "ڪراس-رجسٽري جي تصديق",
+      "ready": "تصديق تيار"
+    },
+    "ingest_another": "← ٻيو ڪم اپ لوڊ ڪريو",
+    "open_workspace": "کوليو تصديق واري ڪم جي جڳهه →",
+    "district_label": "روينيو ضلعو",
+    "tehsil_label": "Tehsil / ذيلي ضلعو",
+    "village_label": "ڳوٺ/ موزا",
+    "btn_clear": "پڌرو",
+    "uploading_deed": "لينڊ رڪارڊ اپ لوڊ ڪرڻ...",
+    "record_label": "رڪارڊ #{{id}}",
+    "step_completed": "مڪمل ٿيو",
+    "toast_ingested": "دستاويز #{{id}} ڪاميابيءَ سان اپ لوڊ ڪيو ويو. حقيقي وقت ڪم فلو سان ڳنڍي رهيو آهي ...",
+    "toast_pipeline_complete": "دستاويز #{{docId}} لاءِ ڪم فلو مڪمل ٿيو! تصديق لاءِ تيار.",
+    "toast_pipeline_note": "ڪم فلو نوٽ: {{message}}"
+  },
+  "registry": {
+    "title": "زمين جي رڪارڊ جي دستاويز جي رجسٽري",
+    "subtitle": "ڊجيٽل انڊيا لينڊ رڪارڊز ماڊرنائيزيشن ٽيڪنيڪل وضاحتون",
+    "search_placeholder": "فائل جو نالو، ضلعي، يا سروي ذريعي ڳولھيو #...",
+    "filter_all": "سڀ اسٽيٽس",
+    "filter_district": "فلٽر ضلعو...",
+    "ingest_new": "نئون دستاويز اپ لوڊ ڪريو",
+    "columns": {
+      "doc_id": "رڪارڊ جي سڃاڻپ",
+      "filename": "دستاويزي فائل جو نالو",
+      "jurisdiction": "جهيڙو",
+      "status": "حيثيت",
+      "confidence": "اعتبار",
+      "uploaded_date": "اپ لوڊ ٿيل تاريخ",
+      "action": "عمل"
+    },
+    "status": {
+      "uploaded": "اپ لوڊ ٿيل",
+      "processing": "پروسيسنگ",
+      "needs_review": "نظرثاني جي ضرورت آهي",
+      "verified": "تصديق ٿيل",
+      "queued": "قطار"
+    },
+    "actions": {
+      "verify": "چڪاس / تصديق",
+      "view": "رڪارڊ ڏسو"
+    },
+    "btn_reset": "ري سيٽ ڪريو",
+    "loading": "لينڊ رڪارڊ جي رجسٽري لوڊ ٿي رهي آهي...",
+    "empty": "چالو فلٽرن سان ملندڙ ڪو به زميني رڪارڊ نه مليو.",
+    "prev_page": "← اڳيون",
+    "next_page": "اڳيون →",
+    "page_info": "صفحو {{page}} جو {{totalPages}}"
+  },
+  "workspace": {
+    "preview_title": "اسڪين ٿيل ڊيڊ دستاويز ڏسڻ وارو",
+    "extract_title": "ڪڍيل قانوني ادارا ۽ قابل اعتماد سکور",
+    "btn_verify": "سائن ان ۽ تصديق ڪريو رڪارڊ",
+    "btn_signing": "سائن ڪيو پيو وڃي...",
+    "btn_verified": "تصديق ٿيل ۽ ڊجيٽل طور تي دستخط ٿيل",
+    "btn_push_lrms": "رياست LRMS ڏانهن جمع ڪريو",
+    "btn_push_gis": "اسٽيٽ GIS پورٽل تي جمع ڪرايو",
+    "btn_dilrmp_export": "📋 DILRMP 2.0 معياري قومي برآمد",
+    "btn_certificate": "سرڪاري سرٽيفڪيٽ",
+    "btn_reprocess": "ٻيهر عمل",
+    "tabs": {
+      "entities": "ادارا",
+      "audit_trail": "جاچ پڙتال"
+    },
+    "labels": {
+      "field_identifier": "فيلڊ جي سڃاڻپ ڪندڙ",
+      "extracted_value": "ڪڍيل قدر",
+      "confidence": "اعتبار",
+      "actions": "عمل",
+      "correct_field": "✏️ درست ڪڍيل ميدان",
+      "crypto_seal": "Cryptographic تصديق:",
+      "sha_seal": "SHA-256 فائل انٽيگرٽي هيش:",
+      "certificate_banner": "ڏسو ۽ پرنٽ ڪريو سرڪاري خود مختيار تصديق واري سرٽيفڪيٽ سان ٽمپر واضح QR سيڪيورٽي ڪوڊ",
+      "fraud_shield_warning": "فراڊ شيلڊ وارننگ - امڪاني نقل ٿيل زمين جي رڪارڊ جو پتو لڳايو ويو:",
+      "status_secured_verified": "SECURED_VERIFIED",
+      "jurisdiction": "دائري اختيار:"
+    },
+    "btn_back_registry": "← واپس رجسٽري ڏانهن",
+    "btn_download_original": "اصل ڊائون لوڊ ڪريو",
+    "inspect_subtitle": "معائنو ڪيو سروي نمبر، مالڪن، ۽ تصديق جي تفصيل کان اڳ تصديق",
+    "no_fields_extracted": "اڃا تائين ڪو به ادارو فيلڊ نه ڪڍيو ويو آهي. دستاويز اڃا پروسيسنگ ٿي سگهي ٿي.",
+    "gateways_title": "اسٽيٽ روينيو گيٽ ويز (موڪ انٽيگريشن)",
+    "gateways_disclaimer": "* سرڪاري گيٽ وي لينڊ ريڪارڊز ماڊرنائيزيشن سسٽم ۽ ڪيڊسٽرل GIS پرت لاءِ.",
+    "viewer_title": "اسڪين ٿيل ڊيڊ دستاويز ڏسڻ وارو",
+    "connecting": "ڳنڍي رهيو آهي...",
+    "tooltips": {
+      "reprocess_blocked": "فيلڊ آفيسر دستاويزن کي ٻيهر پروسيس نه ڪري سگھن ٿا.",
+      "verify_blocked": "تصديق ڪندڙ آفيسرن ۽ منتظمين تائين رسائي محدود.",
+      "already_verified": "دستاويز اڳ ۾ ئي تصديق ٿيل آهي.",
+      "edit_blocked": "فيلڊ آفيسر ڪڍيل فيلڊ ۾ ترميم نٿا ڪري سگهن.",
+      "push_blocked": "فيلڊ آفيسر انضمام کي منتقل نٿا ڪري سگهن."
+    },
+    "toasts": {
+      "verified": "دستاويز #{{docId}} تصديق ٿيل ڊجيٽل دستخط سان!",
+      "verify_blocked": "تصديق بند ڪئي وئي: {{err}}",
+      "reprocess_triggered": "دستاويز #{{docId}} لاءِ ٻيهر پروسيسنگ شروع ڪئي وئي.",
+      "reprocess_failed": "ٻيهر عمل جي درخواست ناڪام ٿي: {{err}}",
+      "pushed": "{{system}} ڏانهن منتقل ڪيو ويو! حوالو: {{reference_id}} ({{status}})",
+      "push_failed": "گيٽ وي جي منتقلي ناڪام ٿي: {{err}}"
+    }
+  },
+  "modals": {
+    "close": "ماڊل بند ڪريو",
+    "auth": {
+      "title_login": "پورٽل ۾ سائن ان ڪريو",
+      "title_register": "مڪمل آفيسر رجسٽريشن",
+      "officer_id": "آفيسر جي سڃاڻپ / اي ميل",
+      "password": "بااختيار پاسورڊ داخل ڪريو",
+      "passphrase": "ھڪڙو مضبوط پاسفريس ٺاھيو",
+      "role": "ڪردار",
+      "field_officer_desc": "فيلڊ آفيسر (Patwari / Talati) - اسڪوپڊ ڊاڪيومينٽ انٽيڪ ۽ جائزو",
+      "verifier_desc": "تصديق ڪندڙ آفيسر (تحصيلدار / نائب تحصيلدار) - تصديق جي سائن آف",
+      "admin_desc": "ڊسٽرڪٽ ايڊمنسٽريٽر - مڪمل نظام گورننس"
+    },
+    "field": {
+      "title": "✏️ درست ڪڍيل ميدان",
+      "entity_field": "اداري جو ميدان",
+      "original_value": "اصل ڪڍيل قدر",
+      "corrected_value": "درست ٿيل خود مختيار قدر *",
+      "reason": "آفيسر آڊٽ سبب / نوٽ",
+      "reason_placeholder": "مثال طور صحيح اسپيلنگ في اسڪين ٿيل ڊيڊ دستاويز",
+      "confirm": "درست ڪرڻ جي تصديق ڪريو",
+      "empty_val": "(خالي)",
+      "toast_updated": "فيلڊ '{{fieldName}}' ڪاميابي سان اپڊيٽ ڪيو ويو!"
+    },
+    "audit": {
+      "title": "آڊٽ پيچرو ۽ پرووينس لاگ",
+      "action": "عمل",
+      "timestamp": "ٽائم اسٽيمپ رڪارڊ ٿيل",
+      "system_pipeline": "سسٽم جو ڪم فلو",
+      "loading": "تاريخ جي آڊٽ واقعن کي لوڊ ڪري رهيو آهي...",
+      "empty": "ھن دستاويز لاءِ اڃا تائين ڪوبه آڊٽ لاگ رڪارڊ نه ڪيو ويو آھي.",
+      "actor": "اداڪار:",
+      "user_label": "استعمال ڪندڙ #{{id}}",
+      "record_header": "رڪارڊ #{{id}}"
+    },
+    "cancel": "منسوخ ڪريو",
+    "saving": "محفوظ ڪري رهيو آهي...",
+    "dilrmp": {
+      "schema_line1": "معياري آمدني جي بدلي جي اسڪيما مطابق مطابق",
+      "schema_line2": "ڊجيٽل انڊيا لينڊ رڪارڊز ماڊرنائيزيشن ٽيڪنيڪل وضاحتون",
+      "generating": "ٺاهي رهيو آهي DILRMP 2.0 معياري پيل لوڊ...",
+      "btn_copy": "ڪاپي JSON",
+      "btn_download": "فائل ڊائون لوڊ ڪريو",
+      "toast_copied": "DILRMP 2.0 JSON پيل لوڊ ڪلپ بورڊ تي نقل ڪيو ويو!",
+      "toast_downloaded": "ڊائون لوڊ ٿيل DILRMP_Record_{{docId}}.json"
+    },
+    "duplicate": {
+      "title": "فراڊ شيلڊ - ٻٽي عنوان ۽ پارسل تڪرار جو مقابلو",
+      "suspected_overlap": "مشڪوڪ نقل ٿيل اوورليپ سان معلوم ڪيو ويو",
+      "token_similarity": "{{score}}% ٽوڪن سيٽ جي مماثلت",
+      "confidence_unavailable": "قابل اعتماد نمبر دستياب ناهي",
+      "dispute_title": "امڪاني روينيو ايڪٽ عنوان تڪرار:",
+      "dispute_desc": "ٻه الڳ دستاويز اوورليپنگ پارسل يا ملڪيت جي همراهن جو حوالو ڏين ٿا. تصديق ڪرڻ کان پهريان هيٺ ڏنل اختلافن جو جائزو وٺو.",
+      "loading": "تڪراري دستاويز جا تفصيل لوڊ ٿي رهيا آهن...",
+      "parcel_attribute": "پارسل خاصيت",
+      "current_ingestion_label": "موجوده اپلوڊ #{{id}} ({{filename}})",
+      "existing_registry_label": "موجوده رجسٽري #{{id}} ({{filename}})",
+      "existing_record": "موجوده رڪارڊ",
+      "mismatch_conflict": "بي ترتيب تڪرار",
+      "duplicate_overlap": "نقلي اوورليپ",
+      "audit_note": "آڊٽ لاگ ان تڪرار جي نظرثاني سيشن کي خودڪار طور تي رڪارڊ ڪري ٿو."
+    }
+  },
+  "app": {
+    "document_title": "BhoomiScan AI - Sovereign Land Record Verification Studio",
+    "loading_portal": "شروع ڪري رهيو آهي BhoomiScan AI پورٽل...",
+    "loading_subtext": "خود مختيار سيڪيورٽي سند ۽ آخري پوائنٽ جي تصديق ڪرڻ",
+    "dept_banner_title": "زميني وسيلن ۽ روينيو انتظاميه جو کاتو:",
+    "dept_banner_desc": "بااختيار کاتي جي رسائي جي ضرورت آهي. .",
+    "dept_access_title": "سرڪاري کاتي جي رسائي",
+    "dept_access_desc": "فيلڊ آفيسرن (پٽوارن)، تصديق ڪندڙ آفيسرن (تحصيلدار) ۽ ضلعي انتظاميه لاءِ رول-گورنمينٽ تصديق واري قطار تائين رسائي حاصل ڪريو.",
+    "sign_in_workspace": "ڪم اسپيس ۾ سائن ان ڪريو",
+    "new_officer_reg": "نئون آفيسر رجسٽريشن",
+    "architecture_title": "سسٽم آرڪيٽيڪچر ۽ معيار",
+    "ocr_title": "ملٽي موڊل او سي آر:",
+    "ocr_desc": "هندستاني اسڪرپٽ لاءِ EasyOCR ڊيپ لرننگ + Tesseract ڪيسڪيڊ.",
+    "dilrmp_title": "DILRMP 2.0:",
+    "dilrmp_desc": "خودڪار 14-عددي ULPIN مختص ۽ ڪيڊسٽرل ميپنگ.",
+    "crypto_title": "Cryptographic تصديق:",
+    "crypto_desc": "SHA-256 ڇڪتاڻ-ظاهري سالميت واري هيشنگ.",
+    "fraud_title": "فراڊ شيلڊ:",
+    "fraud_desc": "رجسٽري جي خلاف ٽوڪن-سيٽ تقريبن نقل رڪارڊ جي سڃاڻپ.",
+    "footer_line1": "BhoomiScan AI • نيشنل لينڊ رڪارڊ ماڊرنائيزيشن ۽ AI تصديق انجڻ",
+    "footer_line2": "Smart India Hackathon (SIH) جدت • GIGW ۽ DILRMP 2.0 مطابق"
+  },
+  "cadastral": {
+    "panel_title": "ڪيڊسٽريل GIS ۽ جيولوڪيشن بائونڊري انسپيڪٽر",
+    "survey_prefix": "سروي #{{number}}",
+    "expand_btn": "وڌايو GIS نقشو ▼",
+    "collapse_btn": "کوليو GIS پينل ▲",
+    "cadastral_layer": "ڪيڊسٽرل پرت:",
+    "parcel_declared": "DILRMP جيو حوالي ٿيل Khasra پارسل #{{khasraNumber}} (اعلان ٿيل علائقو: {{plotArea}})",
+    "grid_view": "ڪيڊسٽريل گرڊ",
+    "satellite_view": "سيٽلائيٽ هائبرڊ",
+    "datum_verified": "سروي اسڪيل: 1:1000 • تاريخ: WGS-84 • DILRMP جيو ٽيگ تصديق ٿيل",
+    "parcel_label": "پارسل {{number}}"
+  },
+  "auth_modal": {
+    "title_login_header": "سرڪاري ڊپارٽمينٽل سائن ان",
+    "title_register_header": "نئون آفيسر رجسٽريشن",
+    "tab_login": "موجوده آفيسر سائن ان",
+    "tab_register": "نئون آفيسر رجسٽريشن",
+    "label_username_login": "سرڪاري نالو / ملازم ID",
+    "label_password": "سيڪيورٽي پاسورڊ",
+    "placeholder_password": "بااختيار پاسورڊ داخل ڪريو",
+    "label_username_register": "سرڪاري نالو *",
+    "label_fullname": "پورو قانوني نالو",
+    "label_email": "سرڪاري اي ميل پتو *",
+    "label_password_register": "پاسورڊ (گهٽ ۾ گهٽ 8 اکر) *",
+    "label_role": "ڊپارٽمينٽل ڪردار ۽ دائري اختيار *",
+    "btn_cancel": "منسوخ ڪريو",
+    "btn_verifying": "تصديق ڪري رهيو آهي...",
+    "btn_registering": "رجسٽر ٿي رهيو آهي...",
+    "toast_welcome": "ٻيهر ڀليڪار، آفيسر {{name}}!",
+    "toast_registered": "آفيسر اڪائونٽ '{{username}}' ڪاميابي سان رجسٽر ٿيو! مھرباني ڪري سائن ان ڪريو."
+  }
+}
