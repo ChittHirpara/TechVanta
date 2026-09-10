@@ -14,3 +14,11 @@ api_router.include_router(dashboard_router)
 api_router.include_router(integrations_router)
 api_router.include_router(demo_router)
 
+# Legacy / direct root router without /api/v1 prefix for mobile & direct API consumers
+legacy_router = APIRouter()
+legacy_router.include_router(auth_router)
+legacy_router.include_router(documents_router)
+legacy_router.include_router(dashboard_router)
+legacy_router.include_router(integrations_router)
+legacy_router.include_router(demo_router)
+

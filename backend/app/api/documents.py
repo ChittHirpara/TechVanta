@@ -429,8 +429,9 @@ async def patch_field(
     old_value = ef.value
 
     # Update the field
-    ef.value      = payload.value.strip()
-    ef.is_flagged = False              # correction clears the flag
+    ef.value            = payload.value.strip()
+    ef.is_flagged       = False              # correction clears the flag
+    ef.confidence_score = 1.0                # human verifier confirmed/certified
 
     # Verification log
     db.add(VerificationLog(

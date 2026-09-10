@@ -1,0 +1,3080 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BhoomiScan AI \u2013 Sovereign Land Record Digitization & Verification Engine",
+    "description": "Production-grade sovereign AI platform designed for Smart India Hackathon (SIH) 2026. Transforms legacy, faded, handwritten, and multilingual Indian land records into DILRMP 2.0 and ULPIN-compliant verified digital registries with automated OCR, Grok LLM extraction, rapidfuzz duplicate fraud detection, and human-in-the-loop verification.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register a new user account",
+        "description": "Create a new user account.\n\n- **username**: 3\u2013100 characters, must be unique.\n- **password**: minimum 8 characters (stored as bcrypt hash, never returned).\n- **role**: `admin` | `verifier` | `field_officer` (default: `field_officer`).",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Exchange credentials for a JWT access token",
+        "description": "Authenticate and receive a Bearer token.\n\nThe token payload contains: `sub` (user id), `role`, `username`, `exp`.\nPass it as `Authorization: Bearer <token>` on protected endpoints.",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Return the currently authenticated user",
+        "description": "Requires a valid Bearer token. Returns the caller's profile.",
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/documents/upload": {
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Upload a land-record document and start async OCR + extraction",
+        "description": "Saves the file, creates a ``Document`` row with ``status=processing``,\nenqueues the full OCR\u2192extraction\u2192validation pipeline as a BackgroundTask,\nand returns the ``document_id`` immediately.\n\nPoll ``GET /documents/{id}`` to watch:\n``processing \u2192 needs_review | verified``",
+        "operationId": "upload_document_api_v1_documents_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_document_api_v1_documents_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/documents/public/verify/{ulpin}/{file_hash}": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Public verification endpoint for citizen / bank QR code scans",
+        "description": "Public verification endpoint that validates a land parcel ULPIN and SHA-256 seal.\nReturns authenticity status without exposing sensitive personal owner data.",
+        "operationId": "public_verify_ulpin_api_v1_documents_public_verify__ulpin___file_hash__get",
+        "parameters": [
+          {
+            "name": "ulpin",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ulpin"
+            }
+          },
+          {
+            "name": "file_hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Hash"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Fetch document metadata + all extracted fields with confidence scores",
+        "description": "Returns the document metadata and its extracted fields.\n\nWhile the pipeline is still running (``status=processing``) the\n``extracted_fields`` list will be empty.  Poll until status changes.",
+        "operationId": "get_document_api_v1_documents__document_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Paginated, filtered document list",
+        "operationId": "list_documents_api_v1_documents_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DocumentStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by processing status",
+              "title": "Status"
+            },
+            "description": "Filter by processing status"
+          },
+          {
+            "name": "district",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by district name",
+              "title": "District"
+            },
+            "description": "Filter by district name"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number (1-based)",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number (1-based)"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Items per page",
+              "default": 20,
+              "title": "Page Size"
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedDocuments"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/fields/{field_name}": {
+      "patch": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Correct an extracted field value (verifier / admin only)",
+        "description": "Update the value of a single extracted field, clear its ``is_flagged``\nflag, and write entries to both ``VerificationLog`` and ``AuditTrail``.\n\nOnly ``verifier`` and ``admin`` roles are permitted.",
+        "operationId": "patch_field_api_v1_documents__document_id__fields__field_name__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "field_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Field Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractedFieldRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/verify": {
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Mark a document as verified (blocks if any field is still flagged)",
+        "description": "Transitions ``status \u2192 verified``.\n\n**Blocked** (422) if any ``ExtractedField.is_flagged == True``.\nCorrect all flagged fields first via\n``PATCH /documents/{id}/fields/{field_name}``.",
+        "operationId": "verify_document_api_v1_documents__document_id__verify_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/reprocess": {
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Re-run full pipeline on an existing document (admin / verifier only)",
+        "operationId": "reprocess_document_api_v1_documents__document_id__reprocess_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Reprocess Document Api V1 Documents  Document Id  Reprocess Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/events": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Real-time Server-Sent Events (SSE) stream of pipeline progress",
+        "description": "Streams live step-by-step progress events for document processing.\nEmits JSON payloads under `data:` with step name, percent, status, and message.\nSupports both Authorization header and ?token= query parameter for browser EventSource.",
+        "operationId": "stream_document_events_api_v1_documents__document_id__events_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Auth token for direct EventSource stream",
+              "title": "Token"
+            },
+            "description": "Auth token for direct EventSource stream"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/duplicates": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Detect potential duplicate/fraudulent land records across the database",
+        "operationId": "get_document_duplicates_api_v1_documents__document_id__duplicates_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "threshold",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 100.0,
+                  "minimum": 0.0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Override fuzzy threshold (0-100)",
+              "title": "Threshold"
+            },
+            "description": "Override fuzzy threshold (0-100)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/export/dilrmp": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Export government DILRMP 2.0 standard record with ULPIN & cryptographic seal",
+        "operationId": "export_dilrmp_api_v1_documents__document_id__export_dilrmp_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/integrity": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Verify cryptographic SHA-256 seal and document file integrity",
+        "operationId": "verify_integrity_api_v1_documents__document_id__integrity_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/file": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Download or stream original deed file for split-screen frontend rendering",
+        "operationId": "get_document_file_api_v1_documents__document_id__file_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Auth token for direct iframe or img preview",
+              "title": "Token"
+            },
+            "description": "Auth token for direct iframe or img preview"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/audit": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Fetch complete chronological audit trail history for this document",
+        "operationId": "get_document_audit_api_v1_documents__document_id__audit_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/certificate": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Generate a printable, cryptographically sealed Sovereign Verification Certificate",
+        "operationId": "get_document_certificate_api_v1_documents__document_id__certificate_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Auth token for direct browser viewing",
+              "title": "Token"
+            },
+            "description": "Auth token for direct browser viewing"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/stats": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Aggregate processing stats and district-wise breakdown",
+        "description": "Returns dashboard metrics (scoped to the user's uploaded documents for\nfield_officer role, or system-wide for admin/verifier roles):\n\n- **total_documents**: every document uploaded\n- **total_processed**: documents that have left the upload/processing phase\n- **pending_review**: documents waiting for a verifier\n- **verified**: documents fully signed-off\n- **avg_confidence**: mean confidence score across saved ``ExtractedField`` rows\n- **flagged_field_count**: fields that still need manual correction\n- **district_breakdown**: per-district totals with status sub-counts",
+        "operationId": "get_stats_api_v1_dashboard_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardStats"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/integrations/lrms/push/{document_id}": {
+      "post": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Push a verified document to the Land Record Management System (LRMS)",
+        "description": "Builds the LRMS payload from the verified document's extracted fields,\nlogs the full payload to ``AuditTrail``, and returns a mock acceptance\nresponse with a government-style reference ID.\n\n**Fields included in the LRMS payload:**\nowner_name, survey_number, khasra_number, khata_number, plot_area,\nland_classification, ownership_details, mutation_record, registration_info,\ndistrict, tehsil, village.\n\nWhen wired to a real LRMS endpoint, replace ``mock_push_lrms`` in\n``app/services/integrations.py`` with the actual HTTP call \u2014 this\nrouter and audit code stay unchanged.",
+        "operationId": "push_to_lrms_api_v1_integrations_lrms_push__document_id__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/gis/push/{document_id}": {
+      "post": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Push verified geospatial metadata to the State GIS portal",
+        "description": "Builds the GIS portal geo-package for the verified document,\npushes it (mocked), and logs the full payload to ``AuditTrail``.\n\nGIS updates are typically asynchronous in real portals \u2014 the ``status``\nfield will read ``\"queued\"`` to reflect this.",
+        "operationId": "push_to_gis_api_v1_integrations_gis_push__document_id__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demo/seed": {
+      "post": {
+        "tags": [
+          "Demo & Presentation"
+        ],
+        "summary": "Reset database and seed 5 benchmark showcase records for live demo",
+        "description": "Wipes the database and seeds 5 carefully crafted evaluation scenarios:\n1. **Jaipur Clean Khasra**: Verified, >90% confidence, compliant with DILRMP 2.0 and ULPIN.\n2. **Jodhpur Plot Deed**: Needs review, degraded historic scan with 3 flagged fields.\n3. **Jaipur Fraud Duplicate**: Needs review, 96% duplicate conflict triggering Fraud Shield.\n4. **Varanasi Hindi Record**: Verified, authentic Devanagari Hindi multilingual demonstration.\n5. **Sanganer In-Flight**: Processing, demonstrates live real-time SSE progress streaming.",
+        "operationId": "seed_demo_mode_api_v1_demo_seed_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demo/status": {
+      "get": {
+        "tags": [
+          "Demo & Presentation"
+        ],
+        "summary": "Inspect current demo readiness and scenario roster",
+        "description": "Returns the count of active documents, users, and scenarios available\nfor demonstration.",
+        "operationId": "get_demo_status_api_v1_demo_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register a new user account",
+        "description": "Create a new user account.\n\n- **username**: 3\u2013100 characters, must be unique.\n- **password**: minimum 8 characters (stored as bcrypt hash, never returned).\n- **role**: `admin` | `verifier` | `field_officer` (default: `field_officer`).",
+        "operationId": "register_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Exchange credentials for a JWT access token",
+        "description": "Authenticate and receive a Bearer token.\n\nThe token payload contains: `sub` (user id), `role`, `username`, `exp`.\nPass it as `Authorization: Bearer <token>` on protected endpoints.",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Return the currently authenticated user",
+        "description": "Requires a valid Bearer token. Returns the caller's profile.",
+        "operationId": "me_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/documents/upload": {
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Upload a land-record document and start async OCR + extraction",
+        "description": "Saves the file, creates a ``Document`` row with ``status=processing``,\nenqueues the full OCR\u2192extraction\u2192validation pipeline as a BackgroundTask,\nand returns the ``document_id`` immediately.\n\nPoll ``GET /documents/{id}`` to watch:\n``processing \u2192 needs_review | verified``",
+        "operationId": "upload_document_documents_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_document_documents_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/documents/public/verify/{ulpin}/{file_hash}": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Public verification endpoint for citizen / bank QR code scans",
+        "description": "Public verification endpoint that validates a land parcel ULPIN and SHA-256 seal.\nReturns authenticity status without exposing sensitive personal owner data.",
+        "operationId": "public_verify_ulpin_documents_public_verify__ulpin___file_hash__get",
+        "parameters": [
+          {
+            "name": "ulpin",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ulpin"
+            }
+          },
+          {
+            "name": "file_hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Hash"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Fetch document metadata + all extracted fields with confidence scores",
+        "description": "Returns the document metadata and its extracted fields.\n\nWhile the pipeline is still running (``status=processing``) the\n``extracted_fields`` list will be empty.  Poll until status changes.",
+        "operationId": "get_document_documents__document_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Paginated, filtered document list",
+        "operationId": "list_documents_documents_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DocumentStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by processing status",
+              "title": "Status"
+            },
+            "description": "Filter by processing status"
+          },
+          {
+            "name": "district",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by district name",
+              "title": "District"
+            },
+            "description": "Filter by district name"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number (1-based)",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number (1-based)"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Items per page",
+              "default": 20,
+              "title": "Page Size"
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedDocuments"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/fields/{field_name}": {
+      "patch": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Correct an extracted field value (verifier / admin only)",
+        "description": "Update the value of a single extracted field, clear its ``is_flagged``\nflag, and write entries to both ``VerificationLog`` and ``AuditTrail``.\n\nOnly ``verifier`` and ``admin`` roles are permitted.",
+        "operationId": "patch_field_documents__document_id__fields__field_name__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "field_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Field Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractedFieldRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/verify": {
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Mark a document as verified (blocks if any field is still flagged)",
+        "description": "Transitions ``status \u2192 verified``.\n\n**Blocked** (422) if any ``ExtractedField.is_flagged == True``.\nCorrect all flagged fields first via\n``PATCH /documents/{id}/fields/{field_name}``.",
+        "operationId": "verify_document_documents__document_id__verify_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/reprocess": {
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Re-run full pipeline on an existing document (admin / verifier only)",
+        "operationId": "reprocess_document_documents__document_id__reprocess_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Reprocess Document Documents  Document Id  Reprocess Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/events": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Real-time Server-Sent Events (SSE) stream of pipeline progress",
+        "description": "Streams live step-by-step progress events for document processing.\nEmits JSON payloads under `data:` with step name, percent, status, and message.\nSupports both Authorization header and ?token= query parameter for browser EventSource.",
+        "operationId": "stream_document_events_documents__document_id__events_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Auth token for direct EventSource stream",
+              "title": "Token"
+            },
+            "description": "Auth token for direct EventSource stream"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/duplicates": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Detect potential duplicate/fraudulent land records across the database",
+        "operationId": "get_document_duplicates_documents__document_id__duplicates_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "threshold",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 100.0,
+                  "minimum": 0.0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Override fuzzy threshold (0-100)",
+              "title": "Threshold"
+            },
+            "description": "Override fuzzy threshold (0-100)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/export/dilrmp": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Export government DILRMP 2.0 standard record with ULPIN & cryptographic seal",
+        "operationId": "export_dilrmp_documents__document_id__export_dilrmp_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/integrity": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Verify cryptographic SHA-256 seal and document file integrity",
+        "operationId": "verify_integrity_documents__document_id__integrity_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/file": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Download or stream original deed file for split-screen frontend rendering",
+        "operationId": "get_document_file_documents__document_id__file_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Auth token for direct iframe or img preview",
+              "title": "Token"
+            },
+            "description": "Auth token for direct iframe or img preview"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/audit": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Fetch complete chronological audit trail history for this document",
+        "operationId": "get_document_audit_documents__document_id__audit_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/certificate": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Generate a printable, cryptographically sealed Sovereign Verification Certificate",
+        "operationId": "get_document_certificate_documents__document_id__certificate_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Auth token for direct browser viewing",
+              "title": "Token"
+            },
+            "description": "Auth token for direct browser viewing"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/stats": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Aggregate processing stats and district-wise breakdown",
+        "description": "Returns dashboard metrics (scoped to the user's uploaded documents for\nfield_officer role, or system-wide for admin/verifier roles):\n\n- **total_documents**: every document uploaded\n- **total_processed**: documents that have left the upload/processing phase\n- **pending_review**: documents waiting for a verifier\n- **verified**: documents fully signed-off\n- **avg_confidence**: mean confidence score across saved ``ExtractedField`` rows\n- **flagged_field_count**: fields that still need manual correction\n- **district_breakdown**: per-district totals with status sub-counts",
+        "operationId": "get_stats_dashboard_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardStats"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/integrations/lrms/push/{document_id}": {
+      "post": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Push a verified document to the Land Record Management System (LRMS)",
+        "description": "Builds the LRMS payload from the verified document's extracted fields,\nlogs the full payload to ``AuditTrail``, and returns a mock acceptance\nresponse with a government-style reference ID.\n\n**Fields included in the LRMS payload:**\nowner_name, survey_number, khasra_number, khata_number, plot_area,\nland_classification, ownership_details, mutation_record, registration_info,\ndistrict, tehsil, village.\n\nWhen wired to a real LRMS endpoint, replace ``mock_push_lrms`` in\n``app/services/integrations.py`` with the actual HTTP call \u2014 this\nrouter and audit code stay unchanged.",
+        "operationId": "push_to_lrms_integrations_lrms_push__document_id__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/integrations/gis/push/{document_id}": {
+      "post": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Push verified geospatial metadata to the State GIS portal",
+        "description": "Builds the GIS portal geo-package for the verified document,\npushes it (mocked), and logs the full payload to ``AuditTrail``.\n\nGIS updates are typically asynchronous in real portals \u2014 the ``status``\nfield will read ``\"queued\"`` to reflect this.",
+        "operationId": "push_to_gis_integrations_gis_push__document_id__post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/demo/seed": {
+      "post": {
+        "tags": [
+          "Demo & Presentation"
+        ],
+        "summary": "Reset database and seed 5 benchmark showcase records for live demo",
+        "description": "Wipes the database and seeds 5 carefully crafted evaluation scenarios:\n1. **Jaipur Clean Khasra**: Verified, >90% confidence, compliant with DILRMP 2.0 and ULPIN.\n2. **Jodhpur Plot Deed**: Needs review, degraded historic scan with 3 flagged fields.\n3. **Jaipur Fraud Duplicate**: Needs review, 96% duplicate conflict triggering Fraud Shield.\n4. **Varanasi Hindi Record**: Verified, authentic Devanagari Hindi multilingual demonstration.\n5. **Sanganer In-Flight**: Processing, demonstrates live real-time SSE progress streaming.",
+        "operationId": "seed_demo_mode_demo_seed_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/demo/status": {
+      "get": {
+        "tags": [
+          "Demo & Presentation"
+        ],
+        "summary": "Inspect current demo readiness and scenario roster",
+        "description": "Returns the count of active documents, users, and scenarios available\nfor demonstration.",
+        "operationId": "get_demo_status_demo_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health Check",
+        "description": "Liveness probe & connectivity sanity check \u2013 returns server, DB, and Grok API status.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Check Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/diagnostics": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "System Diagnostics",
+        "description": "Deep system diagnostics for evaluators, health checks, and monitoring.",
+        "operationId": "system_diagnostics_health_diagnostics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response System Diagnostics Health Diagnostics Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_upload_document_api_v1_documents_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "PDF or image file"
+          },
+          "district": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "District"
+          },
+          "tehsil": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tehsil"
+          },
+          "village": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Village"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_document_api_v1_documents_upload_post"
+      },
+      "Body_upload_document_documents_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "PDF or image file"
+          },
+          "district": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "District"
+          },
+          "tehsil": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tehsil"
+          },
+          "village": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Village"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_document_documents_upload_post"
+      },
+      "DashboardStats": {
+        "properties": {
+          "total_documents": {
+            "type": "integer",
+            "title": "Total Documents"
+          },
+          "total_processed": {
+            "type": "integer",
+            "title": "Total Processed"
+          },
+          "pending_review": {
+            "type": "integer",
+            "title": "Pending Review"
+          },
+          "verified": {
+            "type": "integer",
+            "title": "Verified"
+          },
+          "avg_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Confidence"
+          },
+          "flagged_field_count": {
+            "type": "integer",
+            "title": "Flagged Field Count"
+          },
+          "total_fields": {
+            "type": "integer",
+            "title": "Total Fields"
+          },
+          "district_breakdown": {
+            "items": {
+              "$ref": "#/components/schemas/DistrictBreakdown"
+            },
+            "type": "array",
+            "title": "District Breakdown"
+          },
+          "docs_processed_today": {
+            "type": "integer",
+            "title": "Docs Processed Today",
+            "default": 0
+          },
+          "accuracy_rate": {
+            "type": "number",
+            "title": "Accuracy Rate",
+            "default": 0.0
+          },
+          "duplicate_alerts_count": {
+            "type": "integer",
+            "title": "Duplicate Alerts Count",
+            "default": 0
+          },
+          "automation_rate": {
+            "type": "number",
+            "title": "Automation Rate",
+            "default": 0.0
+          },
+          "avg_processing_time_s": {
+            "type": "number",
+            "title": "Avg Processing Time S",
+            "default": 2.8
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_documents",
+          "total_processed",
+          "pending_review",
+          "verified",
+          "avg_confidence",
+          "flagged_field_count",
+          "total_fields",
+          "district_breakdown"
+        ],
+        "title": "DashboardStats"
+      },
+      "DistrictBreakdown": {
+        "properties": {
+          "district": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "District"
+          },
+          "total_documents": {
+            "type": "integer",
+            "title": "Total Documents"
+          },
+          "verified": {
+            "type": "integer",
+            "title": "Verified"
+          },
+          "needs_review": {
+            "type": "integer",
+            "title": "Needs Review"
+          },
+          "processing": {
+            "type": "integer",
+            "title": "Processing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "district",
+          "total_documents",
+          "verified",
+          "needs_review",
+          "processing"
+        ],
+        "title": "DistrictBreakdown"
+      },
+      "DocumentDetail": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Filename"
+          },
+          "district": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "District"
+          },
+          "tehsil": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tehsil"
+          },
+          "village": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Village"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "storage_path": {
+            "type": "string",
+            "title": "Storage Path"
+          },
+          "uploaded_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploaded By"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DocumentStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "has_suspected_duplicates": {
+            "type": "boolean",
+            "title": "Has Suspected Duplicates",
+            "default": false
+          },
+          "duplicate_count": {
+            "type": "integer",
+            "title": "Duplicate Count",
+            "default": 0
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "extracted_fields": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractedFieldRead"
+            },
+            "type": "array",
+            "title": "Extracted Fields",
+            "default": []
+          },
+          "top_duplicate_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Duplicate Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "id",
+          "storage_path",
+          "uploaded_by",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DocumentDetail",
+        "description": "Full document detail \u2013 includes extracted fields."
+      },
+      "DocumentRead": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Filename"
+          },
+          "district": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "District"
+          },
+          "tehsil": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tehsil"
+          },
+          "village": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Village"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "storage_path": {
+            "type": "string",
+            "title": "Storage Path"
+          },
+          "uploaded_by": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploaded By"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DocumentStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "has_suspected_duplicates": {
+            "type": "boolean",
+            "title": "Has Suspected Duplicates",
+            "default": false
+          },
+          "duplicate_count": {
+            "type": "integer",
+            "title": "Duplicate Count",
+            "default": 0
+          },
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "id",
+          "storage_path",
+          "uploaded_by",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DocumentRead",
+        "description": "Flat document metadata \u2013 used in list responses."
+      },
+      "DocumentStatus": {
+        "type": "string",
+        "enum": [
+          "uploaded",
+          "processing",
+          "needs_review",
+          "verified"
+        ],
+        "title": "DocumentStatus"
+      },
+      "ExtractedFieldRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "field_name": {
+            "type": "string",
+            "title": "Field Name"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "confidence_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence Score"
+          },
+          "is_flagged": {
+            "type": "boolean",
+            "title": "Is Flagged"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "confidence_tier": {
+            "type": "string",
+            "title": "Confidence Tier",
+            "default": "medium"
+          },
+          "confidence_color": {
+            "type": "string",
+            "title": "Confidence Color",
+            "default": "yellow"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "field_name",
+          "value",
+          "confidence_score",
+          "is_flagged",
+          "created_at"
+        ],
+        "title": "ExtractedFieldRead"
+      },
+      "FieldPatchRequest": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Value",
+            "description": "Corrected field value"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Optional verifier note for the audit log"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "FieldPatchRequest",
+        "description": "Body for PATCH /documents/{id}/fields/{field_name}."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IntegrationResponse": {
+        "properties": {
+          "system": {
+            "type": "string",
+            "title": "System"
+          },
+          "document_id": {
+            "type": "integer",
+            "title": "Document Id"
+          },
+          "reference_id": {
+            "type": "string",
+            "title": "Reference Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "pushed_at": {
+            "type": "string",
+            "title": "Pushed At"
+          },
+          "mock": {
+            "type": "boolean",
+            "title": "Mock"
+          },
+          "payload_logged": {
+            "type": "boolean",
+            "title": "Payload Logged",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "system",
+          "document_id",
+          "reference_id",
+          "status",
+          "pushed_at",
+          "mock"
+        ],
+        "title": "IntegrationResponse"
+      },
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "PaginatedDocuments": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentRead"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "page",
+          "page_size",
+          "items"
+        ],
+        "title": "PaginatedDocuments"
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token"
+        ],
+        "title": "TokenResponse"
+      },
+      "UserCreate": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 3,
+            "title": "Username"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole",
+            "default": "field_officer"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "UserCreate",
+        "description": "Payload to register a new user."
+      },
+      "UserRead": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 3,
+            "title": "Username"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole",
+            "default": "field_officer"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "id",
+          "created_at"
+        ],
+        "title": "UserRead",
+        "description": "Safe outbound representation \u2013 never includes password_hash."
+      },
+      "UserRole": {
+        "type": "string",
+        "enum": [
+          "admin",
+          "verifier",
+          "field_officer"
+        ],
+        "title": "UserRole"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "/api/v1/auth/login"
+          }
+        }
+      }
+    }
+  }
+}

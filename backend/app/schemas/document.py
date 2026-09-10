@@ -78,8 +78,15 @@ class DocumentRead(_DocumentBase):
     updated_at:   datetime
     has_suspected_duplicates: bool = False
     duplicate_count:          int = 0
+    document_id:              int | None = None
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def populate_document_id(self) -> "DocumentRead":
+        if self.document_id is None:
+            self.document_id = self.id
+        return self
 
 
 class DocumentDetail(DocumentRead):
