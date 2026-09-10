@@ -38,9 +38,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Land Record Digitizer",
-    description="Enterprise API for digitizing, OCR-processing, verifying, and querying land records.",
-    version="0.1.0",
+    title="BhoomiScan AI – Sovereign Land Record Digitization & Verification Engine",
+    description=(
+        "Production-grade sovereign AI platform designed for Smart India Hackathon (SIH) 2026. "
+        "Transforms legacy, faded, handwritten, and multilingual Indian land records into DILRMP 2.0 "
+        "and ULPIN-compliant verified digital registries with automated OCR, Grok LLM extraction, "
+        "rapidfuzz duplicate fraud detection, and human-in-the-loop verification."
+    ),
+    version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     debug=settings.debug,
