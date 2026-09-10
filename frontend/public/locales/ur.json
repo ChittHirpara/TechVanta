@@ -127,7 +127,11 @@
     "empty": "کوئی زمینی ریکارڈ فعال فلٹرز سے مماثل نہیں ملا۔",
     "prev_page": "← پچھلا",
     "next_page": "اگلا →",
-    "page_info": "صفحہ {{page}} از {{totalPages}}"
+    "page_info": "صفحہ {{page}} از {{totalPages}}",
+    "voice_search_start": "صوتی تلاش شروع کریں",
+    "voice_search_listening": "سن رہا ہے... تلاش کا لفظ بولیں",
+    "voice_search_unsupported": "اس براؤزر میں صوتی تلاش معاون نہیں ہے",
+    "voice_search_lang_unsupported": "موجودہ زبان کے لیے صوتی تلاش دستیاب نہیں ہے"
   },
   "workspace": {
     "preview_title": "اسکین شدہ ڈیڈ دستاویز دیکھنے والا",
@@ -179,7 +183,15 @@
       "reprocess_failed": "دوبارہ کارروائی کی درخواست ناکام ہوگئی: {{err}}",
       "pushed": "{{system}} میں منتقل کیا گیا! حوالہ: {{reference_id}} ({{status}})",
       "push_failed": "گیٹ وے کی منتقلی ناکام ہوئی: {{err}}"
-    }
+    },
+    "ocr_overlay_toggle": "او سی آر شناخت اوورلے",
+    "ocr_overlay_active": "اوورلے فعال",
+    "ocr_overlay_off": "اوورلے بند",
+    "ocr_reliability_high": "اعلیٰ قابل اعتمادی (>= 85%)",
+    "ocr_reliability_med": "درمیانی قابل اعتمادی (70-84%)",
+    "ocr_reliability_low": "کم قابل اعتمادی (< 70%)",
+    "ocr_tokens_detected": "او سی آر انجن کے ذریعے {{count}} متن کے خطے شناخت کیے گئے",
+    "ocr_loading": "او سی آر شناخت اوورلے لوڈ ہو رہا ہے..."
   },
   "modals": {
     "close": "موڈل بند کریں۔",
@@ -241,7 +253,16 @@
       "existing_record": "موجودہ ریکارڈ",
       "mismatch_conflict": "مماثل تنازعہ",
       "duplicate_overlap": "ڈپلیکیٹ اوورلیپ",
-      "audit_note": "آڈٹ لاگ اس تنازعہ کے جائزہ سیشن کو خود بخود ریکارڈ کرتا ہے۔"
+      "audit_note": "آڈٹ لاگ اس تنازعہ کے جائزہ سیشن کو خود بخود ریکارڈ کرتا ہے۔",
+      "role_restricted_badge": "مکمل کراس آفیسر موازنہ صرف تصدیق کنندہ افسران تک محدود ہے",
+      "role_restricted_title": "ادارہ جاتی رسائی گورننس نوٹس:",
+      "role_restricted_desc": "DILRMP ریونیو آڈٹ پروٹوکول کے تحت، فیلڈ افسران کو تنازعات سے آگاہ کیا جاتا ہے لیکن تفصیلی مفاہمت تصدیق کنندہ افسران کے لیے مخصوص ہے۔",
+      "matched_summary_title": "تنازعہ شناخت کا خلاصہ",
+      "matched_record_id": "مطابقت پذیر ریکارڈ شناخت",
+      "matched_owner": "مطابقت پذیر مالک کا نام",
+      "matched_survey": "مطابقت پذیر سروے / پلاٹ نمبر",
+      "escalation_notice": "کارروائی درکار ہے: سرکاری حل کے لیے اس ریکارڈ کو تصدیق کنندہ افسر (تحصیلدار) کو بھیجیں۔",
+      "verifier_audit_badge": "تصدیق کنندہ افسر رسائی - مکمل آڈٹ موازنہ فعال"
     }
   },
   "app": {

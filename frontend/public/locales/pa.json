@@ -127,7 +127,11 @@
     "empty": "ਸਰਗਰਮ ਫਿਲਟਰਾਂ ਨਾਲ ਮੇਲ ਖਾਂਦਾ ਕੋਈ ਜ਼ਮੀਨੀ ਰਿਕਾਰਡ ਨਹੀਂ ਮਿਲਿਆ।",
     "prev_page": "← ਪਿਛਲਾ",
     "next_page": "ਅੱਗੇ →",
-    "page_info": "{{totalPages}} ਵਿੱਚੋਂ {{page}} ਪੰਨਾ"
+    "page_info": "{{totalPages}} ਵਿੱਚੋਂ {{page}} ਪੰਨਾ",
+    "voice_search_start": "ਆਵਾਜ਼ ਖੋਜ ਸ਼ੁਰੂ ਕਰੋ",
+    "voice_search_listening": "ਸੁਣ ਰਿਹਾ ਹੈ... ਖੋਜ ਸ਼ਬਦ ਬੋਲੋ",
+    "voice_search_unsupported": "ਇਸ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਆਵਾਜ਼ ਖੋਜ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ",
+    "voice_search_lang_unsupported": "ਮੌਜੂਦਾ ਭਾਸ਼ਾ ਲਈ ਆਵਾਜ਼ ਖੋਜ ਉਪਲਬਧ ਨਹੀਂ ਹੈ"
   },
   "workspace": {
     "preview_title": "ਸਕੈਨ ਕੀਤਾ ਡੀਡ ਦਸਤਾਵੇਜ਼ ਦਰਸ਼ਕ",
@@ -179,7 +183,15 @@
       "reprocess_failed": "ਮੁੜ ਪ੍ਰਕਿਰਿਆ ਬੇਨਤੀ ਅਸਫਲ: {{err}}",
       "pushed": "{{system}} ਵਿੱਚ ਟ੍ਰਾਂਸਫ਼ਰ ਕੀਤਾ ਗਿਆ! ਹਵਾਲਾ: {{reference_id}} ({{status}})",
       "push_failed": "ਗੇਟਵੇ ਟ੍ਰਾਂਸਫਰ ਅਸਫਲ: {{err}}"
-    }
+    },
+    "ocr_overlay_toggle": "ਓਸੀਆਰ ਖੋਜ ਓਵਰਲੇਅ",
+    "ocr_overlay_active": "ਓਵਰਲੇਅ ਸਰਗਰਮ",
+    "ocr_overlay_off": "ਓਵਰਲੇਅ ਬੰਦ",
+    "ocr_reliability_high": "ਉੱਚ ਭਰੋਸੇਯੋਗਤਾ (>= 85%)",
+    "ocr_reliability_med": "ਦਰਮਿਆਨੀ ਭਰੋਸੇਯੋਗਤਾ (70-84%)",
+    "ocr_reliability_low": "ਘੱਟ ਭਰੋਸੇਯੋਗਤਾ (< 70%)",
+    "ocr_tokens_detected": "ਓਸੀਆਰ ਇੰਜਣ ਦੁਆਰਾ {{count}} ਟੈਕਸਟ ਖੇਤਰ ਲੱਭੇ ਗਏ",
+    "ocr_loading": "ਓਸੀਆਰ ਖੋਜ ਓਵਰਲੇਅ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ..."
   },
   "modals": {
     "close": "ਮਾਡਲ ਬੰਦ ਕਰੋ",
@@ -241,7 +253,16 @@
       "existing_record": "ਮੌਜੂਦਾ ਰਿਕਾਰਡ",
       "mismatch_conflict": "ਬੇਮੇਲ ਟਕਰਾਅ",
       "duplicate_overlap": "ਡੁਪਲੀਕੇਟ ਓਵਰਲੈਪ",
-      "audit_note": "ਆਡਿਟ ਲੌਗ ਇਸ ਵਿਵਾਦ ਸਮੀਖਿਆ ਸੈਸ਼ਨ ਨੂੰ ਆਪਣੇ ਆਪ ਰਿਕਾਰਡ ਕਰਦਾ ਹੈ।"
+      "audit_note": "ਆਡਿਟ ਲੌਗ ਇਸ ਵਿਵਾਦ ਸਮੀਖਿਆ ਸੈਸ਼ਨ ਨੂੰ ਆਪਣੇ ਆਪ ਰਿਕਾਰਡ ਕਰਦਾ ਹੈ।",
+      "role_restricted_badge": "ਪੂਰੀ ਅੰਤਰ-ਅਧਿਕਾਰੀ ਤੁਲਨਾ ਕੇਵਲ ਤਸਦੀਕ ਅਧਿਕਾਰੀਆਂ ਲਈ ਸੀਮਤ",
+      "role_restricted_title": "ਸੰਸਥਾਗਤ ਪਹੁੰਚ ਸ਼ਾਸਨ ਸੂਚਨਾ:",
+      "role_restricted_desc": "DILRMP ਮਾਲ ਆਡਿਟ ਪ੍ਰੋਟੋਕੋਲ ਦੇ ਤਹਿਤ, ਖੇਤਰੀ ਅਧਿਕਾਰੀਆਂ ਨੂੰ ਡੁਪਲੀਕੇਟ ਟਕਰਾਵਾਂ ਬਾਰੇ ਸੂਚਿਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ, ਪਰ ਵਿਸਤ੍ਰਿਤ ਸਮਝੌਤਾ ਤਸਦੀਕ ਅਧਿਕਾਰੀਆਂ ਲਈ ਰਾਖਵਾਂ ਹੈ।",
+      "matched_summary_title": "ਟਕਰਾਅ ਖੋਜ ਸਾਰ",
+      "matched_record_id": "ਮੇਲ ਖਾਂਦਾ ਰਿਕਾਰਡ ਆਈਡੀ",
+      "matched_owner": "ਮੇਲ ਖਾਂਦਾ ਮਾਲਕ ਦਾ ਨਾਮ",
+      "matched_survey": "ਮੇਲ ਖਾਂਦਾ ਸਰਵੇਖਣ / ਪਲਾਟ ਨੰਬਰ",
+      "escalation_notice": "ਕਾਰਵਾਈ ਲੋੜੀਂਦੀ: ਅਧਿਕਾਰਤ ਹੱਲ ਲਈ ਇਸ ਰਿਕਾਰਡ ਨੂੰ ਤਸਦੀਕ ਅਧਿਕਾਰੀ (ਤਹਿਸੀਲਦਾਰ) ਨੂੰ ਭੇਜੋ।",
+      "verifier_audit_badge": "ਤਸਦੀਕ ਅਧਿਕਾਰੀ ਪਹੁੰਚ - ਪੂਰੀ ਆਡਿਟ ਤੁਲਨਾ ਸਮਰੱਥ"
     }
   },
   "app": {

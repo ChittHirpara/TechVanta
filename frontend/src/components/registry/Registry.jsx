@@ -1,11 +1,46 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { documentsApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { IconSearch, IconUpload, IconShield, IconRefresh } from '../common/Icons';
 
+// Native browser Web Speech API supported Indic BCP-47 tags in Chromium/Edge
+const SPEECH_RECOGNITION_LANG_MAP = {
+  en: 'en-IN',
+  hi: 'hi-IN',
+  bn: 'bn-IN',
+  te: 'te-IN',
+  mr: 'mr-IN',
+  ta: 'ta-IN',
+  gu: 'gu-IN',
+  kn: 'kn-IN',
+  ml: 'ml-IN',
+  pa: 'pa-IN',
+  ur: 'ur-IN',
+  ne: 'ne-NP',
+};
+
+function IconMic({ size = 15, active = false }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={active ? '#dc2626' : 'currentColor'}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+    </svg>
+  );
+}
+
 export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUpdate }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isFieldOfficer } = useAuth();
 
   const [documents, setDocuments] = useState([]);
@@ -18,6 +53,66 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
   const [districtFilter, setDistrictFilter] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Web Speech API state
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  const activeLang = i18n?.language || 'en';
+  const speechLang = SPEECH_RECOGNITION_LANG_MAP[activeLang];
+  const hasBrowserSpeech = typeof window !== 'undefined' && Boolean(window.webkitSpeechRecognition || window.SpeechRecognition);
+  const isSpeechSupported = Boolean(hasBrowserSpeech && speechLang);
+
+  const toggleVoiceSearch = () => {
+    if (!isSpeechSupported) return;
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (_) {}
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = speechLang;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results?.[0]?.[0]?.transcript;
+        if (transcript) {
+          setSearch(transcript.trim());
+        }
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.warn('Failed to start speech recognition:', err);
+      setIsListening(false);
+    }
+  };
 
   const fetchDocuments = useCallback(
     async (currentPage = 1) => {
@@ -95,11 +190,49 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
           <input
             type="text"
             className="form-control"
-            style={{ paddingLeft: 32 }}
+            style={{ paddingLeft: 32, paddingRight: isSpeechSupported ? 38 : 12 }}
             placeholder={t('registry.search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {isSpeechSupported && (
+            <button
+              type="button"
+              onClick={toggleVoiceSearch}
+              title={isListening ? t('registry.voice_search_listening') : t('registry.voice_search_start')}
+              aria-label={isListening ? t('registry.voice_search_listening') : t('registry.voice_search_start')}
+              style={{
+                position: 'absolute',
+                right: 6,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: isListening ? '#fee2e2' : 'transparent',
+                border: isListening ? '1px solid #f87171' : 'none',
+                borderRadius: 4,
+                padding: '4px 6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: isListening ? '#dc2626' : 'var(--slate-500)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <IconMic size={15} active={isListening} />
+              {isListening && (
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    backgroundColor: '#dc2626',
+                    marginLeft: 4,
+                  }}
+                />
+              )}
+            </button>
+          )}
         </div>
 
         <div style={{ width: 180 }}>

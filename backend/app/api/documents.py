@@ -14,12 +14,15 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import mimetypes
 import re
 import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 from fastapi import (
     APIRouter, BackgroundTasks, Body, Depends, File,
@@ -48,6 +51,7 @@ from app.schemas.document import (
 from app.services.audit_service import write_audit
 from app.services.certificate_service import generate_certificate_html
 from app.services.dilrmp import build_dilrmp_export_payload, compute_file_sha256, generate_ulpin
+from app.services.ocr import get_ocr_provider
 from app.services.pipeline import pipeline_broadcaster, process_document
 from app.services.validation import find_duplicates
 
@@ -567,6 +571,9 @@ async def reprocess_document(
     if not Path(doc.storage_path).exists():
         raise HTTPException(422, "Original file missing from disk; cannot reprocess.")
 
+    # Purge any stale OCR detection coordinates cache so fresh overlay is generated
+    Path(f"{doc.storage_path}.ocr.json").unlink(missing_ok=True)
+
     await write_audit(
         db,
         "reprocess_requested",
@@ -879,6 +886,114 @@ async def get_document_certificate(
         verifier_username=verifier_name,
     )
     return HTMLResponse(content=cert_html, status_code=200)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/{id}/ocr-boxes  (OCR Detection Overlay Bounding Boxes)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{document_id}/ocr-boxes",
+    summary="Get normalized bounding boxes of all OCR-detected text regions",
+)
+async def get_document_ocr_boxes(
+    document_id: int,
+    token: str | None = Query(None, description="Auth token for direct viewing"),
+    authorization: str | None = Header(None),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    current_user = await _resolve_user(token, authorization, db)
+    doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
+
+    storage_path = Path(doc.storage_path)
+    if not storage_path.exists():
+        raise HTTPException(status_code=404, detail="Document file not found on disk.")
+
+    ocr_cache_path = Path(f"{doc.storage_path}.ocr.json")
+    if ocr_cache_path.exists():
+        try:
+            return json.loads(ocr_cache_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    # Generate on-demand if cache missing
+    try:
+        provider = get_ocr_provider()
+        ocr_result = await provider.extract_text(storage_path)
+        tokens = [
+            {
+                "text": t.text,
+                "confidence": round(t.confidence, 4),
+                "box": [round(c, 2) for c in t.box],
+                "page": t.page,
+            }
+            for t in getattr(ocr_result, "tokens", [])
+        ]
+        data = {
+            "document_id": document_id,
+            "provider": ocr_result.provider,
+            "avg_confidence": ocr_result.avg_confidence,
+            "page_count": ocr_result.page_count,
+            "tokens": tokens,
+        }
+        try:
+            ocr_cache_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+        return data
+    except Exception as exc:
+        log.warning("Could not extract OCR bounding boxes for document %s: %s", document_id, exc)
+        return {
+            "document_id": document_id,
+            "provider": "unknown",
+            "avg_confidence": 0.0,
+            "page_count": 1,
+            "tokens": [],
+        }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/{id}/preview-image  (Image / Rendered PDF Page Preview)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/{document_id}/preview-image",
+    summary="Get renderable image preview for document overlay (JPEG/PNG)",
+)
+async def get_document_preview_image(
+    document_id: int,
+    page: int = 1,
+    token: str | None = Query(None, description="Auth token for direct browser image viewing"),
+    authorization: str | None = Header(None),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    current_user = await _resolve_user(token, authorization, db)
+    doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
+
+    storage_path = Path(doc.storage_path)
+    if not storage_path.exists():
+        raise HTTPException(status_code=404, detail="Document file not found on disk.")
+
+    suffix = storage_path.suffix.lower()
+    if suffix in [".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"]:
+        media_type = "image/jpeg" if suffix in [".jpg", ".jpeg"] else f"image/{suffix.lstrip('.')}"
+        return FileResponse(storage_path, media_type=media_type)
+    elif suffix == ".pdf":
+        from app.services.ocr import _convert_pdf_to_images
+        import io
+        images = _convert_pdf_to_images(storage_path, dpi=150)
+        if not images:
+            raise HTTPException(status_code=422, detail="Unable to render preview image from PDF.")
+        page_idx = max(0, min(page - 1, len(images) - 1))
+        img = images[page_idx]
+        buf = io.BytesIO()
+        img.convert("RGB").save(buf, format="JPEG", quality=85)
+        return Response(content=buf.getvalue(), media_type="image/jpeg")
+    else:
+        raise HTTPException(status_code=415, detail=f"Cannot preview file type '{suffix}'.")
+
 
 
 

@@ -28,6 +28,16 @@ log = logging.getLogger(__name__)
 class WordConfidence:
     word: str
     confidence: float  # 0.0 – 1.0
+    box: list[float] = field(default_factory=list)
+    page: int = 1
+
+
+@dataclass
+class OCRToken:
+    text: str
+    confidence: float
+    box: list[float] = field(default_factory=list)  # [x, y, w, h] as percentages (0.0 to 100.0)
+    page: int = 1
 
 
 @dataclass
@@ -36,6 +46,7 @@ class OCRResult:
     raw_text: str
     avg_confidence: float                        # 0.0 – 1.0
     word_confidences: list[WordConfidence] = field(default_factory=list)
+    tokens: list[OCRToken] = field(default_factory=list)
     page_count: int = 1                          # >1 for multi-page PDFs
     provider: str = "unknown"
 
@@ -46,6 +57,15 @@ class OCRResult:
             "word_confidences": [
                 {"word": wc.word, "confidence": wc.confidence}
                 for wc in self.word_confidences
+            ],
+            "tokens": [
+                {
+                    "text": t.text,
+                    "confidence": round(t.confidence, 4),
+                    "box": [round(c, 2) for c in t.box],
+                    "page": t.page,
+                }
+                for t in self.tokens
             ],
             "page_count": self.page_count,
             "provider": self.provider,
@@ -165,11 +185,11 @@ class TesseractProvider(OCRProvider):
 
     # ── private helpers ───────────────────────────────────────────────────────
 
-    def _ocr_image(self, image) -> tuple[str, list[WordConfidence]]:
+    def _ocr_image(self, image, page_num: int = 1) -> tuple[str, list[WordConfidence], list[OCRToken]]:
         """
         Run Tesseract on a single PIL Image.
 
-        Returns (text, word_confidences).
+        Returns (text, word_confidences, tokens).
         """
         import pytesseract  # lazy import – not available in every environment
 
@@ -180,23 +200,39 @@ class TesseractProvider(OCRProvider):
             output_type=pytesseract.Output.DICT,
         )
 
+        img_w, img_h = image.size
         words: list[WordConfidence] = []
-        for text, conf in zip(data["text"], data["conf"]):
-            text = text.strip()
+        tokens: list[OCRToken] = []
+        n_boxes = len(data["text"])
+        for i in range(n_boxes):
+            text = str(data["text"][i]).strip()
+            conf = data["conf"][i]
             # Tesseract returns -1 confidence for non-word blocks; skip them
             if text and conf != -1:
-                words.append(WordConfidence(word=text, confidence=float(conf) / 100.0))
+                c = float(conf) / 100.0
+                left = float(data["left"][i])
+                top = float(data["top"][i])
+                width = float(data["width"][i])
+                height = float(data["height"][i])
+                x = (left / img_w) * 100.0 if img_w else 0.0
+                y = (top / img_h) * 100.0 if img_h else 0.0
+                w = (width / img_w) * 100.0 if img_w else 0.0
+                h = (height / img_h) * 100.0 if img_h else 0.0
+                box = [x, y, w, h]
+                wc = WordConfidence(word=text, confidence=c, box=box, page=page_num)
+                words.append(wc)
+                tokens.append(OCRToken(text=text, confidence=c, box=box, page=page_num))
 
         # Full page text (cleaner than joining `data["text"]`)
         raw = pytesseract.image_to_string(image, lang=self.lang)
-        return raw.strip(), words
+        return raw.strip(), words, tokens
 
     def _extract_from_image(self, path: Path) -> OCRResult:
         from PIL import Image
 
         with Image.open(path) as img:
             img = img.convert("RGB")
-            text, words = self._ocr_image(img)
+            text, words, tokens = self._ocr_image(img, page_num=1)
 
         avg_conf = (
             sum(w.confidence for w in words) / len(words) if words else 0.0
@@ -205,6 +241,7 @@ class TesseractProvider(OCRProvider):
             raw_text=text,
             avg_confidence=round(avg_conf, 4),
             word_confidences=words,
+            tokens=tokens,
             page_count=1,
             provider=self.name,
         )
@@ -216,12 +253,14 @@ class TesseractProvider(OCRProvider):
 
         all_text_parts: list[str] = []
         all_words: list[WordConfidence] = []
+        all_tokens: list[OCRToken] = []
 
         for i, page_img in enumerate(pages, start=1):
             log.debug("  OCR-ing page %d/%d", i, len(pages))
-            page_text, page_words = self._ocr_image(page_img)
+            page_text, page_words, page_tokens = self._ocr_image(page_img, page_num=i)
             all_text_parts.append(f"[Page {i}]\n{page_text}")
             all_words.extend(page_words)
+            all_tokens.extend(page_tokens)
 
         raw_text = "\n\n".join(all_text_parts)
         avg_conf = (
@@ -233,6 +272,7 @@ class TesseractProvider(OCRProvider):
             raw_text=raw_text,
             avg_confidence=round(avg_conf, 4),
             word_confidences=all_words,
+            tokens=all_tokens,
             page_count=len(pages),
             provider=self.name,
         )
@@ -329,28 +369,43 @@ class EasyOCRProvider(OCRProvider):
             self._fallback = TesseractProvider(pdf_dpi=self.pdf_dpi)
         return self._fallback
 
-    def _ocr_image_easyocr(self, image) -> tuple[str, list[WordConfidence]]:
+    def _ocr_image_easyocr(self, image, page_num: int = 1) -> tuple[str, list[WordConfidence], list[OCRToken]]:
         """Run EasyOCR on a single PIL Image."""
         import numpy as np
         reader = self._get_reader()
         if reader is None:
             # Package not installed — delegate to Tesseract
-            return self._get_fallback()._ocr_image(image)
+            return self._get_fallback()._ocr_image(image, page_num=page_num)
 
+        img_w, img_h = image.size
         img_array = np.array(image.convert("RGB"))
         results = reader.readtext(img_array, detail=1)
 
         words: list[WordConfidence] = []
+        tokens: list[OCRToken] = []
         text_parts: list[str] = []
 
         for (_bbox, text, conf) in results:
             text = str(text).strip()
             if text:
-                words.append(WordConfidence(word=text, confidence=float(conf)))
+                c = float(conf)
+                xs = [pt[0] for pt in _bbox]
+                ys = [pt[1] for pt in _bbox]
+                x_min = max(0.0, min(xs))
+                y_min = max(0.0, min(ys))
+                box_w = max(0.0, max(xs) - x_min)
+                box_h = max(0.0, max(ys) - y_min)
+                x = (x_min / img_w) * 100.0 if img_w else 0.0
+                y = (y_min / img_h) * 100.0 if img_h else 0.0
+                w = (box_w / img_w) * 100.0 if img_w else 0.0
+                h = (box_h / img_h) * 100.0 if img_h else 0.0
+                box = [x, y, w, h]
+                words.append(WordConfidence(word=text, confidence=c, box=box, page=page_num))
+                tokens.append(OCRToken(text=text, confidence=c, box=box, page=page_num))
                 text_parts.append(text)
 
         raw_text = " ".join(text_parts)
-        return raw_text, words
+        return raw_text, words, tokens
 
     def _extract_sync(self, file_path: Path) -> OCRResult:
         suffix = file_path.suffix.lower()
@@ -360,12 +415,14 @@ class EasyOCRProvider(OCRProvider):
             pages = _convert_pdf_to_images(file_path, dpi=self.pdf_dpi)
             all_text_parts: list[str] = []
             all_words: list[WordConfidence] = []
+            all_tokens: list[OCRToken] = []
 
             for i, page_img in enumerate(pages, start=1):
                 log.debug("[easyocr] OCR-ing page %d/%d", i, len(pages))
-                page_text, page_words = self._ocr_image_easyocr(page_img)
+                page_text, page_words, page_tokens = self._ocr_image_easyocr(page_img, page_num=i)
                 all_text_parts.append(f"[Page {i}]\n{page_text}")
                 all_words.extend(page_words)
+                all_tokens.extend(page_tokens)
 
             raw_text = "\n\n".join(all_text_parts)
             avg_conf = (
@@ -376,6 +433,7 @@ class EasyOCRProvider(OCRProvider):
                 raw_text=raw_text,
                 avg_confidence=round(avg_conf, 4),
                 word_confidences=all_words,
+                tokens=all_tokens,
                 page_count=len(pages),
                 provider=self.name,
             )
@@ -384,7 +442,7 @@ class EasyOCRProvider(OCRProvider):
             from PIL import Image
 
             with Image.open(file_path) as img:
-                text, words = self._ocr_image_easyocr(img)
+                text, words, tokens = self._ocr_image_easyocr(img, page_num=1)
 
             avg_conf = (
                 sum(w.confidence for w in words) / len(words) if words else 0.0
@@ -393,6 +451,7 @@ class EasyOCRProvider(OCRProvider):
                 raw_text=text,
                 avg_confidence=round(avg_conf, 4),
                 word_confidences=words,
+                tokens=tokens,
                 page_count=1,
                 provider=self.name,
             )

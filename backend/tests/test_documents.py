@@ -506,6 +506,14 @@ async def test_field_officer_cannot_access_other_users_document(
     resp = await client.get(f"/api/v1/documents/{doc_id}/file", headers={"Authorization": f"Bearer {token_b}"})
     assert resp.status_code == 403
 
+    # Officer B attempts to fetch OCR boxes -> 403
+    resp = await client.get(f"/api/v1/documents/{doc_id}/ocr-boxes", headers={"Authorization": f"Bearer {token_b}"})
+    assert resp.status_code == 403
+
+    # Officer B attempts to fetch preview image -> 403
+    resp = await client.get(f"/api/v1/documents/{doc_id}/preview-image", headers={"Authorization": f"Bearer {token_b}"})
+    assert resp.status_code == 403
+
     # Officer B attempts write operations (PATCH field, verify, reprocess) -> 403
     patch_resp = await client.patch(
         f"/api/v1/documents/{doc_id}/fields/owner_name",
@@ -534,6 +542,9 @@ async def test_field_officer_cannot_access_other_users_document(
 
     # 3. Verifier can access Officer A's document -> 200
     resp = await client.get(f"/api/v1/documents/{doc_id}", headers={"Authorization": f"Bearer {verifier_token}"})
+    assert resp.status_code == 200
+
+    resp = await client.get(f"/api/v1/documents/{doc_id}/ocr-boxes", headers={"Authorization": f"Bearer {verifier_token}"})
     assert resp.status_code == 200
 
     # 4. Admin can access Officer A's document -> 200

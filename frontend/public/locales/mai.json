@@ -127,7 +127,11 @@
     "empty": "सक्रिय फिल्टर स मेल खाइत कोनो भूमि रिकॉर्ड नहि भेटल।",
     "prev_page": "← पिछला",
     "next_page": "अगला →",
-    "page_info": "{{totalPages}} के पृष्ठ {{page}}।"
+    "page_info": "{{totalPages}} के पृष्ठ {{page}}।",
+    "voice_search_start": "आवाज खोज शुरू करू",
+    "voice_search_listening": "सुनि रहल छी... खोज शब्द बाजु",
+    "voice_search_unsupported": "एहि ब्राउजरमे आवाज खोज समर्थित नहि अछि",
+    "voice_search_lang_unsupported": "वर्तमान भाषाक लेल आवाज खोज उपलब्ध नहि अछि"
   },
   "workspace": {
     "preview_title": "स्कैन कएल गेल डीड दस्तावेज दर्शक",
@@ -179,7 +183,15 @@
       "reprocess_failed": "पुनः संसाधित अनुरोध विफल: {{err}}",
       "pushed": "{{system}} मे स्थानांतरित कएल गेल! संदर्भ: {{reference_id}} ({{status}})",
       "push_failed": "गेटवे स्थानांतरण विफल: {{err}}"
-    }
+    },
+    "ocr_overlay_toggle": "ओसीआर पहचान ओवरले",
+    "ocr_overlay_active": "ओवरले सक्रिय",
+    "ocr_overlay_off": "ओवरले बन्द",
+    "ocr_reliability_high": "उच्च विश्वसनीयता (>= 85%)",
+    "ocr_reliability_med": "मध्यम विश्वसनीयता (70-84%)",
+    "ocr_reliability_low": "कम विश्वसनीयता (< 70%)",
+    "ocr_tokens_detected": "ओसीआर इन्जिन द्वारा {{count}} पाठ क्षेत्र पहिचान कएल गेल",
+    "ocr_loading": "ओसीआर पहचान ओवरले लोड भ रहल अछि..."
   },
   "modals": {
     "close": "मोडल बंद करू",
@@ -241,7 +253,16 @@
       "existing_record": "मौजूदा अभिलेख",
       "mismatch_conflict": "बेमेल टकराव",
       "duplicate_overlap": "डुप्लिकेट ओवरलैप",
-      "audit_note": "ऑडिट लॉग अइ संघर्ष समीक्षा सत्र कें स्वचालित रूप सं रिकॉर्ड करयत छै."
+      "audit_note": "ऑडिट लॉग अइ संघर्ष समीक्षा सत्र कें स्वचालित रूप सं रिकॉर्ड करयत छै.",
+      "role_restricted_badge": "पूर्ण क्रॉस-अधिकारी तुलना केवल सत्यापन अधिकारी लोकनिक लेल सीमित",
+      "role_restricted_title": "संस्थागत पहुँच शासन सूचना:",
+      "role_restricted_desc": "DILRMP राजस्व ऑडिट नियमक तहत, क्षेत्रीय अधिकारी लोकनिकेँ सूचित कएल जाइत अछि, मुदा विस्तृत समाधान सत्यापन अधिकारी लेल आरक्षित अछि।",
+      "matched_summary_title": "द्वंद्व पहचान सारांश",
+      "matched_record_id": "मेल खाइत रेकर्ड आईडी",
+      "matched_owner": "मेल खाइत मालिकक नाम",
+      "matched_survey": "मेल खाइत सर्वेक्षण / भूखंड संख्या",
+      "escalation_notice": "कार्रवाई आवश्यक: आधिकारिक समाधान लेल एहि रेकर्डकेँ सत्यापन अधिकारी लग पठाउ।",
+      "verifier_audit_badge": "सत्यापन अधिकारी पहुँच - पूर्ण ऑडिट तुलना सक्षम"
     }
   },
   "app": {

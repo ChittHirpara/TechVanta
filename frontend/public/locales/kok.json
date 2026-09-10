@@ -127,7 +127,11 @@
     "empty": "सक्रिय फिल्टरांक जुळपी जमनीचे नोंदी मेळूंक नात.",
     "prev_page": "← आदलें",
     "next_page": "फुडें →",
-    "page_info": "{{totalPages}} चें पान {{page}}."
+    "page_info": "{{totalPages}} चें पान {{page}}.",
+    "voice_search_start": "आवाज सोद सुरू करा",
+    "voice_search_listening": "आयकाता... सोद उतर उलय",
+    "voice_search_unsupported": "ह्या ब्राउझराचेर आवाज सोद समर्थित ना",
+    "voice_search_lang_unsupported": "सद्याचे भाशे खातीर आवाज सोद उपलब्ध ना"
   },
   "workspace": {
     "preview_title": "स्कॅन केल्लो डीड दस्तावेज पळोवपी",
@@ -179,7 +183,15 @@
       "reprocess_failed": "पुनर्प्रक्रिया विनंती अपयशी: {{err}}",
       "pushed": "{{system}} कडेन हस्तांतरीत केलां! संदर्भ: {{reference_id}} ({{status}})",
       "push_failed": "गेटवे हस्तांतरण अपयशी: {{err}}"
-    }
+    },
+    "ocr_overlay_toggle": "ओसीआर वळख ओव्हरले",
+    "ocr_overlay_active": "ओव्हरले सुरू",
+    "ocr_overlay_off": "ओव्हरले बंद",
+    "ocr_reliability_high": "उंच भावार्था (>= 85%)",
+    "ocr_reliability_med": "मध्यम भावार्था (70-84%)",
+    "ocr_reliability_low": "उणी भावार्था (< 70%)",
+    "ocr_tokens_detected": "ओसीआर इंजिना वरवीं {{count}} मजकूर वाठार सोदून काडले",
+    "ocr_loading": "ओसीआर वळख ओव्हरले लोड जाता..."
   },
   "modals": {
     "close": "मोडल बंद करचें",
@@ -241,7 +253,16 @@
       "existing_record": "सद्याचो रेकॉर्ड",
       "mismatch_conflict": "बेजोड संघर्श",
       "duplicate_overlap": "डुप्लीकेट ओव्हरलॅप",
-      "audit_note": "ऑडिट लॉग हें संघर्श पुनरावलोकन सत्र आपोआप नोंद करता."
+      "audit_note": "ऑडिट लॉग हें संघर्श पुनरावलोकन सत्र आपोआप नोंद करता.",
+      "role_restricted_badge": "पुराय क्रॉस-अधिकारी तुलना फकत तपासणी अधिकाऱ्यां खातीर मर्यादित",
+      "role_restricted_title": "संस्थात्मक प्रवेश शासन सुचोवणी:",
+      "role_restricted_desc": "DILRMP महसूल ऑडिट नेमांप्रमाण, वाठार अधिकाऱ्यांक संघर्षाची म्हायती मेळटा, पूण बारीकसाणीन तोडगो तपासणी अधिकाऱ्यां खातीर दवरला।",
+      "matched_summary_title": "संघर्श वळख सारांश",
+      "matched_record_id": "जुळपी नोंद आयडी",
+      "matched_owner": "जुळपी मालकाचें नांव",
+      "matched_survey": "जुळपी सर्व्हे / प्लॉट नंबर",
+      "escalation_notice": "कारवाय गरजेची: अधिकृत तोडग्या खातीर ही नोंद तपासणी अधिकाऱ्या कडेन धाडा।",
+      "verifier_audit_badge": "तपासणी अधिकारी प्रवेश - पुराय ऑडिट तुलना सुरू"
     }
   },
   "app": {

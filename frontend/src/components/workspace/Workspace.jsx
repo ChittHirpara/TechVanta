@@ -43,6 +43,28 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
   const [isPushingLrms, setIsPushingLrms] = useState(false);
   const [isPushingGis, setIsPushingGis] = useState(false);
 
+  // OCR Detection Overlay state
+  const [showOcrOverlay, setShowOcrOverlay] = useState(false);
+  const [ocrData, setOcrData] = useState(null);
+  const [isLoadingOcr, setIsLoadingOcr] = useState(false);
+  const [activeTokenHighlight, setActiveTokenHighlight] = useState('');
+
+  const toggleOcrOverlay = async () => {
+    const next = !showOcrOverlay;
+    setShowOcrOverlay(next);
+    if (next && !ocrData) {
+      setIsLoadingOcr(true);
+      try {
+        const data = await documentsApi.getOcrBoxes(docId);
+        setOcrData(data);
+      } catch (err) {
+        console.warn('Failed to fetch OCR bounding boxes:', err);
+      } finally {
+        setIsLoadingOcr(false);
+      }
+    }
+  };
+
   const fetchWorkspaceData = useCallback(async () => {
     if (!docId) return;
     setIsLoading(true);
@@ -253,20 +275,144 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
               <IconFile size={14} />
               {doc.filename} (ID: #{doc.id})
             </span>
-            <a
-              href={fileUrl}
-              target="_blank"
-              rel="noreferrer"
-              download={doc.filename}
-              className="btn btn-header-outline btn-sm"
-            >
-              <IconDownload size={13} />
-              {t('workspace.btn_download_original')}
-            </a>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${showOcrOverlay ? 'btn-primary' : 'btn-outline'}`}
+                onClick={toggleOcrOverlay}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                title={showOcrOverlay ? t('workspace.ocr_overlay_active') : t('workspace.ocr_overlay_off')}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    backgroundColor: showOcrOverlay ? '#10b981' : '#94a3b8',
+                    display: 'inline-block',
+                  }}
+                />
+                {t('workspace.ocr_overlay_toggle')}
+              </button>
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                download={doc.filename}
+                className="btn btn-header-outline btn-sm"
+              >
+                <IconDownload size={13} />
+                {t('workspace.btn_download_original')}
+              </a>
+            </div>
           </div>
 
           <div className="preview-content">
-            {isImage ? (
+            {showOcrOverlay ? (
+              <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'auto', background: '#0f172a', padding: 8 }}>
+                {/* Confidence Legend Bar */}
+                <div
+                  style={{
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 20,
+                    background: 'rgba(15, 23, 42, 0.92)',
+                    backdropFilter: 'blur(4px)',
+                    color: '#f8fafc',
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    marginBottom: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: 11,
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(16, 185, 129, 0.4)', border: '1px solid #10b981' }} />
+                      {t('workspace.ocr_reliability_high')}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(245, 158, 11, 0.4)', border: '1px solid #f59e0b' }} />
+                      {t('workspace.ocr_reliability_med')}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(239, 68, 68, 0.4)', border: '1px solid #ef4444' }} />
+                      {t('workspace.ocr_reliability_low')}
+                    </span>
+                  </div>
+                  <div>
+                    {isLoadingOcr ? (
+                      <span style={{ color: '#93c5fd' }}>{t('workspace.ocr_loading')}</span>
+                    ) : ocrData?.tokens ? (
+                      <span>{t('workspace.ocr_tokens_detected', { count: ocrData.tokens.length })}</span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Render document image preview with overlay */}
+                <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%', width: '100%' }}>
+                  <img
+                    src={documentsApi.getPreviewImageUrl(docId, token)}
+                    alt={doc.filename}
+                    style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 4 }}
+                  />
+
+                  {/* Bounding Box Tokens */}
+                  {ocrData?.tokens?.map((tok, idx) => {
+                    const [x, y, w, h] = tok.box || [0, 0, 0, 0];
+                    const conf = tok.confidence !== undefined ? tok.confidence : 1.0;
+                    const pct = Math.round(conf * 100);
+
+                    // High (>=85%): green, Med (70-84%): amber, Low (<70%): crimson
+                    let borderColor = '#10b981';
+                    let bgColor = 'rgba(16, 185, 129, 0.2)';
+                    if (pct < 70) {
+                      borderColor = '#ef4444';
+                      bgColor = 'rgba(239, 68, 68, 0.25)';
+                    } else if (pct < 85) {
+                      borderColor = '#f59e0b';
+                      bgColor = 'rgba(245, 158, 11, 0.25)';
+                    }
+
+                    // Highlight matching tokens if activeTokenHighlight matches
+                    const isMatched =
+                      activeTokenHighlight &&
+                      tok.text &&
+                      (activeTokenHighlight.toLowerCase().includes(tok.text.toLowerCase()) ||
+                       tok.text.toLowerCase().includes(activeTokenHighlight.toLowerCase()));
+
+                    if (isMatched) {
+                      borderColor = '#38bdf8';
+                      bgColor = 'rgba(56, 189, 248, 0.5)';
+                    }
+
+                    return (
+                      <div
+                        key={idx}
+                        title={`${tok.text} (${pct}% confidence)`}
+                        style={{
+                          position: 'absolute',
+                          left: `${x}%`,
+                          top: `${y}%`,
+                          width: `${w}%`,
+                          height: `${h}%`,
+                          border: `1.5px solid ${borderColor}`,
+                          backgroundColor: bgColor,
+                          boxSizing: 'border-box',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          zIndex: isMatched ? 15 : 5,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ) : isImage ? (
               <img src={fileUrl} alt={doc.filename} />
             ) : (
               <iframe
@@ -347,8 +493,23 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
                         if (score < 70) confClass = 'conf-low';
                         else if (score < 85) confClass = 'conf-mid';
 
+                        const isRowHighlighted =
+                          activeTokenHighlight &&
+                          field.value &&
+                          (activeTokenHighlight.toLowerCase().includes(field.value.toLowerCase()) ||
+                            field.value.toLowerCase().includes(activeTokenHighlight.toLowerCase()));
+
                         return (
-                          <tr key={field.field_name}>
+                          <tr
+                            key={field.field_name}
+                            onMouseEnter={() => setActiveTokenHighlight(field.value || '')}
+                            onMouseLeave={() => setActiveTokenHighlight('')}
+                            style={{
+                              backgroundColor: isRowHighlighted ? 'rgba(56, 189, 248, 0.1)' : undefined,
+                              transition: 'background-color 0.15s ease',
+                              cursor: 'pointer',
+                            }}
+                          >
                             <td>
                               <code className="font-mono text-xs text-gov-navy-900 font-semibold">
                                 {field.field_name}

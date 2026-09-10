@@ -205,8 +205,23 @@ def translate_via_bhashini_or_neural(text: str, target_lang: str) -> str:
             time.sleep(delay + jitter)
 
 def generate_locale_for_language(target_lang: str, flat_en: dict):
-    print(f"[{target_lang}] Translating {len(flat_en)} strings in parallel...", flush=True)
-    translated_flat = {}
+    target_file = LOCALES_DIR / f"{target_lang}.json"
+    existing_flat = {}
+    if target_file.exists():
+        try:
+            with open(target_file, "r", encoding="utf-8") as f:
+                existing_flat = flatten_dict(json.load(f))
+        except Exception:
+            existing_flat = {}
+
+    missing_items = {k: v for k, v in flat_en.items() if k not in existing_flat or not existing_flat[k]}
+    
+    if not missing_items and len(existing_flat) == len(flat_en):
+        print(f"[{target_lang}] All {len(flat_en)} keys already up to date.", flush=True)
+        return True, unflatten_dict(existing_flat)
+
+    print(f"[{target_lang}] Total keys: {len(flat_en)} (reusing {len(flat_en) - len(missing_items)} existing, translating {len(missing_items)} new)...", flush=True)
+    translated_flat = dict(existing_flat)
     failed_keys = []
     
     def process_key(item):
@@ -215,6 +230,7 @@ def generate_locale_for_language(target_lang: str, flat_en: dict):
         normalized = tier1_pre_normalize(raw_val)
         
         try:
+            time.sleep(random.uniform(0.15, 0.35))
             translated = translate_via_bhashini_or_neural(normalized, target_lang)
             restored = tier1_restore_tokens(translated)
             
@@ -227,8 +243,8 @@ def generate_locale_for_language(target_lang: str, flat_en: dict):
         except Exception as err:
             return (key, raw_val, str(err))
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        results = list(executor.map(process_key, flat_en.items()))
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(process_key, missing_items.items()))
         
     for key, val, err in results:
         if err:

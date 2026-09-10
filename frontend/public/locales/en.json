@@ -127,7 +127,11 @@
     "empty": "No land records found matching the active filters.",
     "prev_page": "← Previous",
     "next_page": "Next →",
-    "page_info": "Page {{page}} of {{totalPages}}"
+    "page_info": "Page {{page}} of {{totalPages}}",
+    "voice_search_start": "Start Voice Search",
+    "voice_search_listening": "Listening... Speak search term",
+    "voice_search_unsupported": "Voice search is not supported in this browser",
+    "voice_search_lang_unsupported": "Voice search unavailable for current language"
   },
   "workspace": {
     "preview_title": "Scanned Deed Document Viewer",
@@ -165,6 +169,14 @@
     "gateways_disclaimer": "*Official gateway for Land Records Modernization System & Cadastral GIS layers.",
     "viewer_title": "Scanned Deed Document Viewer",
     "connecting": "Connecting...",
+    "ocr_overlay_toggle": "OCR Detection Overlay",
+    "ocr_overlay_active": "Overlay Active",
+    "ocr_overlay_off": "Overlay Off",
+    "ocr_reliability_high": "High Reliability (>= 85%)",
+    "ocr_reliability_med": "Medium Reliability (70-84%)",
+    "ocr_reliability_low": "Low Reliability (< 70%)",
+    "ocr_tokens_detected": "{{count}} text regions detected by OCR engine",
+    "ocr_loading": "Loading OCR detection overlay...",
     "tooltips": {
       "reprocess_blocked": "Field Officers cannot reprocess documents.",
       "verify_blocked": "Access restricted to Verifying Officers and Admins.",
@@ -241,7 +253,16 @@
       "existing_record": "Existing Record",
       "mismatch_conflict": "Mismatch Conflict",
       "duplicate_overlap": "Duplicate Overlap",
-      "audit_note": "Audit log records this conflict review session automatically."
+      "audit_note": "Audit log records this conflict review session automatically.",
+      "role_restricted_badge": "Full cross-officer diff restricted to Verifying Officers",
+      "role_restricted_title": "Institutional Access Governance Notice:",
+      "role_restricted_desc": "Under DILRMP revenue auditing protocols, Field Officers are notified of high-confidence duplicate conflicts, but cross-dossier reconciliation across departmental officers is restricted to Verifying Officers.",
+      "matched_summary_title": "Conflict Detection Summary",
+      "matched_record_id": "Matched Record ID",
+      "matched_owner": "Matched Owner Name",
+      "matched_survey": "Matched Survey / Plot No.",
+      "escalation_notice": "Action Required: Escalate this intake record to a Verifying Officer (Tehsildar) for official inter-officer title dispute resolution.",
+      "verifier_audit_badge": "Verifying Officer Access - Full Audit Comparison Enabled"
     }
   },
   "app": {

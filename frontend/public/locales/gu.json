@@ -127,7 +127,11 @@
     "empty": "સક્રિય ફિલ્ટર્સ સાથે મેળ ખાતા કોઈ જમીન રેકોર્ડ મળ્યા નથી.",
     "prev_page": "← પહેલાનું",
     "next_page": "આગળ →",
-    "page_info": "{{totalPages}} માંથી {{page}} પૃષ્ઠ"
+    "page_info": "{{totalPages}} માંથી {{page}} પૃષ્ઠ",
+    "voice_search_start": "વોઇસ શોધ શરૂ કરો",
+    "voice_search_listening": "સાંભળી રહ્યું છે... શોધ શબ્દ બોલો",
+    "voice_search_unsupported": "આ બ્રાઉઝરમાં વોઇસ શોધ સમર્થિત નથી",
+    "voice_search_lang_unsupported": "વર્તમાન ભાષા માટે વોઇસ શોધ ઉપલબ્ધ નથી"
   },
   "workspace": {
     "preview_title": "સ્કેન કરેલ ડીડ ડોક્યુમેન્ટ વ્યુઅર",
@@ -179,7 +183,15 @@
       "reprocess_failed": "પુનઃપ્રક્રિયાની વિનંતી નિષ્ફળ: {{err}}",
       "pushed": "{{system}} માં સ્થાનાંતરિત! સંદર્ભ: {{reference_id}} ({{status}})",
       "push_failed": "ગેટવે ટ્રાન્સફર નિષ્ફળ થયું: {{err}}"
-    }
+    },
+    "ocr_overlay_toggle": "ઓસીઆર શોધ ઓવરલે",
+    "ocr_overlay_active": "ઓવરલે સક્રિય",
+    "ocr_overlay_off": "ઓવરલે બંધ",
+    "ocr_reliability_high": "ઉચ્ચ વિશ્વસનીયતા (>= 85%)",
+    "ocr_reliability_med": "મધ્યમ વિશ્વસનીયતા (70-84%)",
+    "ocr_reliability_low": "ઓછી વિશ્વસનીયતા (< 70%)",
+    "ocr_tokens_detected": "ઓસીઆર એન્જિન દ્વારા {{count}} લખાણ વિસ્તારો શોધાયા",
+    "ocr_loading": "ઓસીઆર શોધ ઓવરલે લોડ થઈ રહ્યું છે..."
   },
   "modals": {
     "close": "મોડલ બંધ કરો",
@@ -241,7 +253,16 @@
       "existing_record": "હાલનો રેકોર્ડ",
       "mismatch_conflict": "મેળ ખાતો સંઘર્ષ",
       "duplicate_overlap": "ડુપ્લિકેટ ઓવરલેપ",
-      "audit_note": "ઓડિટ લોગ આ સંઘર્ષ સમીક્ષા સત્રને આપમેળે રેકોર્ડ કરે છે."
+      "audit_note": "ઓડિટ લોગ આ સંઘર્ષ સમીક્ષા સત્રને આપમેળે રેકોર્ડ કરે છે.",
+      "role_restricted_badge": "સંપૂર્ણ ક્રોસ-અધિકારી તુલના ફક્ત ચકાસણી અધિકારીઓ માટે મર્યાદિત",
+      "role_restricted_title": "સંસ્થાકીય ઍક્સેસ શાસન સૂચના:",
+      "role_restricted_desc": "DILRMP મહેસૂલ ઓડિટ નિયમો હેઠળ, ક્ષેત્ર અધિકારીઓને સંઘર્ષોની જાણ કરવામાં આવે છે, પરંતુ વિગતવાર સમાધાન ચકાસણી અધિકારીઓ માટે અનામત છે.",
+      "matched_summary_title": "સંઘર્ષ શોધ સારાંશ",
+      "matched_record_id": "મેળ ખાતો રેકોર્ડ આઈડી",
+      "matched_owner": "મેળ ખાતું માલિકનું નામ",
+      "matched_survey": "મેળ ખાતો સર્વે / પ્લોટ નંબર",
+      "escalation_notice": "પગલાં જરૂરી: સત્તાવાર ઉકેલ માટે આ રેકોર્ડ ચકાસણી અધિકારી (મામલતદાર) ને મોકલો.",
+      "verifier_audit_badge": "ચકાસણી અધિકારી ઍક્સેસ - સંપૂર્ણ ઓડિટ તુલના સક્ષમ"
     }
   },
   "app": {

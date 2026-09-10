@@ -41,6 +41,7 @@ Usage in a route
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -368,6 +369,28 @@ async def process_document(
                 ocr_result = await provider.extract_text(storage_path)
                 raw_text   = ocr_result.raw_text
                 ocr_avg_conf = ocr_result.avg_confidence
+
+                # Persist OCR detection coordinates cache
+                try:
+                    ocr_cache_path = Path(f"{storage_path}.ocr.json")
+                    ocr_payload = {
+                        "document_id": document_id,
+                        "provider": ocr_result.provider,
+                        "avg_confidence": ocr_avg_conf,
+                        "page_count": ocr_result.page_count,
+                        "tokens": [
+                            {
+                                "text": t.text,
+                                "confidence": round(t.confidence, 4),
+                                "box": [round(c, 2) for c in t.box],
+                                "page": t.page,
+                            }
+                            for t in getattr(ocr_result, "tokens", [])
+                        ],
+                    }
+                    ocr_cache_path.write_text(json.dumps(ocr_payload, indent=2), encoding="utf-8")
+                except Exception as cache_exc:
+                    log.warning("[pipeline] Failed to write OCR cache file: %s", cache_exc)
 
                 await _log_audit(
                     session,

@@ -127,7 +127,11 @@
     "empty": "सक्रिय फ़िल्टरें कन्नै मेल खंदा कोई जमीन रिकार्ड नेईं लब्भा।",
     "prev_page": "← पिछले",
     "next_page": "अगला →",
-    "page_info": "{{totalPages}} दा पेज {{page}}।"
+    "page_info": "{{totalPages}} दा पेज {{page}}।",
+    "voice_search_start": "आवाज खोज शुरू करो",
+    "voice_search_listening": "सुन्दे आ... खोज शब्द बोलो",
+    "voice_search_unsupported": "इस ब्राउज़र च आवाज खोज समर्थित नेईं ऐ",
+    "voice_search_lang_unsupported": "मौजूदा भाशा लेई आवाज खोज उपलब्ध नेईं ऐ"
   },
   "workspace": {
     "preview_title": "स्कैन कीता गेदा डीड दस्तावेज दर्शक",
@@ -179,7 +183,15 @@
       "reprocess_failed": "पुनर्प्रक्रिया अनुरोध असफल: {{err}}",
       "pushed": "{{system}} च स्थानांतरित कीता गेआ! संदर्भ: {{reference_id}} ({{status}}) ऐ।",
       "push_failed": "गेटवे स्थानांतरण असफल: {{err}}"
-    }
+    },
+    "ocr_overlay_toggle": "ओसीआर पछाड़ ओवरले",
+    "ocr_overlay_active": "ओवरले सक्रिय",
+    "ocr_overlay_off": "ओवरले बन्न",
+    "ocr_reliability_high": "उच्च विश्वसनीयता (>= 85%)",
+    "ocr_reliability_med": "मध्यम विश्वसनीयता (70-84%)",
+    "ocr_reliability_low": "घट्ट विश्वसनीयता (< 70%)",
+    "ocr_tokens_detected": "ओसीआर इंजन दुआरा {{count}} पाठ खित्ते पछाने गे",
+    "ocr_loading": "ओसीआर पछाड़ ओवरले लोड होई रेया ऐ..."
   },
   "modals": {
     "close": "मोडल बंद करो",
@@ -241,7 +253,16 @@
       "existing_record": "मौजूदा रिकार्ड",
       "mismatch_conflict": "बेमेल टकराव",
       "duplicate_overlap": "डुप्लिकेट ओवरलैप करना",
-      "audit_note": "आडिट लॉग इस टकराव समीक्षा सत्र गी स्वतः रिकार्ड करदा ऐ।"
+      "audit_note": "आडिट लॉग इस टकराव समीक्षा सत्र गी स्वतः रिकार्ड करदा ऐ।",
+      "role_restricted_badge": "पूरा क्रॉस-अफसर मुकाबला सिर्फ प्रमाणीकरण अफसरें तगर सीमित",
+      "role_restricted_title": "संस्थागत पुज्ज शासन सूचना:",
+      "role_restricted_desc": "DILRMP राजस्व आडिट नियमें तहत, मैदानी अफसरें गी सूचना दित्ती जंदी ऐ, पर पूरा हल प्रमाणीकरण अफसरें लेई रक्षित ऐ।",
+      "matched_summary_title": "टकराव पछाड़ सार",
+      "matched_record_id": "मिलदा रकार्ड आईडी",
+      "matched_owner": "मिलदा मालिक दा नां",
+      "matched_survey": "मिलदा सर्वे / प्लाट नंबर",
+      "escalation_notice": "कार्रवाई जरूरी: सरकारी हल लेई इस रकार्ड गी प्रमाणीकरण अफसर (तहसीलदार) थ्हैं भेजो।",
+      "verifier_audit_badge": "प्रमाणीकरण अफसर पुज्ज - पूरा आडिट मुकाबला समर्थ"
     }
   },
   "app": {

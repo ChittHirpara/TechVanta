@@ -127,7 +127,11 @@
     "empty": "چالو فلٽرن سان ملندڙ ڪو به زميني رڪارڊ نه مليو.",
     "prev_page": "← اڳيون",
     "next_page": "اڳيون →",
-    "page_info": "صفحو {{page}} جو {{totalPages}}"
+    "page_info": "صفحو {{page}} جو {{totalPages}}",
+    "voice_search_start": "آواز سان ڳولا شروع ڪريو",
+    "voice_search_listening": "ٻڌي رهيو آهي... ڳولا لفظ چئو",
+    "voice_search_unsupported": "هن برائوزر ۾ آواز سان ڳولا سهڪاريل ناهي",
+    "voice_search_lang_unsupported": "موجوده ٻولي لاءِ آواز سان ڳولا دستياب ناهي"
   },
   "workspace": {
     "preview_title": "اسڪين ٿيل ڊيڊ دستاويز ڏسڻ وارو",
@@ -179,7 +183,15 @@
       "reprocess_failed": "ٻيهر عمل جي درخواست ناڪام ٿي: {{err}}",
       "pushed": "{{system}} ڏانهن منتقل ڪيو ويو! حوالو: {{reference_id}} ({{status}})",
       "push_failed": "گيٽ وي جي منتقلي ناڪام ٿي: {{err}}"
-    }
+    },
+    "ocr_overlay_toggle": "او سي آر سڃاڻپ اوورلي",
+    "ocr_overlay_active": "اوورلي چالو",
+    "ocr_overlay_off": "اوورلي بند",
+    "ocr_reliability_high": "اعليٰ اعتبار (>= 85%)",
+    "ocr_reliability_med": "درميانو اعتبار (70-84%)",
+    "ocr_reliability_low": "گھٽ اعتبار (< 70%)",
+    "ocr_tokens_detected": "او سي آر انجڻ ذريعي {{count}} عبارتي علائقا سڃاتا ويا",
+    "ocr_loading": "او سي آر سڃاڻپ اوورلي لوڊ ٿي رهيو آهي..."
   },
   "modals": {
     "close": "ماڊل بند ڪريو",
@@ -241,7 +253,16 @@
       "existing_record": "موجوده رڪارڊ",
       "mismatch_conflict": "بي ترتيب تڪرار",
       "duplicate_overlap": "نقلي اوورليپ",
-      "audit_note": "آڊٽ لاگ ان تڪرار جي نظرثاني سيشن کي خودڪار طور تي رڪارڊ ڪري ٿو."
+      "audit_note": "آڊٽ لاگ ان تڪرار جي نظرثاني سيشن کي خودڪار طور تي رڪارڊ ڪري ٿو.",
+      "role_restricted_badge": "مڪمل ڪراس-آفيسر ڀيٽ رڳو تصديق ڪندڙ آفيسرن تائين محدود",
+      "role_restricted_title": "اداراجاتي رسائي حڪمراني نوٽيس:",
+      "role_restricted_desc": "DILRMP روينيو آڊٽ ضابطن تحت، فيلڊ آفيسرن کي تنازعي جي ڄاڻ ڏني وڃي ٿي پر تفصيلي حل تصديق ڪندڙ آفيسرن لاءِ مخصوص آهي.",
+      "matched_summary_title": "تنازعي سڃاڻپ جو تت",
+      "matched_record_id": "ملندڙ رڪارڊ سڃاڻپ",
+      "matched_owner": "ملندڙ مالڪ جو نالو",
+      "matched_survey": "ملندڙ سروي / پلاٽ نمبر",
+      "escalation_notice": "ڪارروائي گهربل: سرڪاري نبيري لاءِ هي رڪارڊ تصديق ڪندڙ آفيسر (تحصيلدار) ڏانهن موڪليو.",
+      "verifier_audit_badge": "تصديق ڪندڙ آفيسر رسائي - مڪمل آڊٽ ڀيٽ چالو"
     }
   },
   "app": {
