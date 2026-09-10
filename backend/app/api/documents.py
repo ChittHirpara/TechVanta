@@ -906,6 +906,17 @@ async def get_document_ocr_boxes(
     doc = await _get_doc_or_404(document_id, db)
     require_document_access(doc, current_user)
 
+    if doc.status == DocumentStatus.processing:
+        return {
+            "document_id": document_id,
+            "status": "processing",
+            "provider": "pending",
+            "avg_confidence": 0.0,
+            "page_count": 1,
+            "tokens": [],
+            "message": "Document is currently processing. OCR bounding boxes are not ready yet.",
+        }
+
     storage_path = Path(doc.storage_path)
     if not storage_path.exists():
         raise HTTPException(status_code=404, detail="Document file not found on disk.")
@@ -974,6 +985,11 @@ async def get_document_preview_image(
 
     storage_path = Path(doc.storage_path)
     if not storage_path.exists():
+        if doc.status == DocumentStatus.processing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Document file is still being ingested and preview is not ready yet.",
+            )
         raise HTTPException(status_code=404, detail="Document file not found on disk.")
 
     suffix = storage_path.suffix.lower()

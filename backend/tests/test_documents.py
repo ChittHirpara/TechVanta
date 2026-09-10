@@ -608,3 +608,35 @@ async def test_dashboard_stats_scoped_to_field_officer(
     stats_admin = (await client.get("/api/v1/dashboard/stats", headers={"Authorization": f"Bearer {admin_token}"})).json()
     assert stats_admin["total_documents"] >= 1
 
+
+@pytest.mark.asyncio
+async def test_ocr_boxes_on_processing_document(client: AsyncClient, admin_token: str):
+    """
+    Test that calling /ocr-boxes on a document still in 'processing' state:
+    - Does not throw 500 or raw file error
+    - Returns a clean JSON response with status='processing' and tokens=[]
+    """
+    # Upload document with mocked pipeline so it stays in processing state
+    with patch("app.api.documents.process_document"):
+        up_resp = await client.post(
+            "/api/v1/documents/upload",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            files={"file": ("processing_deed.pdf", io.BytesIO(b"%PDF-1.4 mock content"), "application/pdf")},
+            data={"district": "Jaipur"},
+        )
+    assert up_resp.status_code == 202
+    doc_id = up_resp.json()["id"]
+
+    # Verify doc status is processing
+    doc_resp = await client.get(f"/api/v1/documents/{doc_id}", headers={"Authorization": f"Bearer {admin_token}"})
+    assert doc_resp.json()["status"] == "processing"
+
+    # Call /ocr-boxes -> clean 200 with status='processing' and tokens=[]
+    boxes_resp = await client.get(f"/api/v1/documents/{doc_id}/ocr-boxes", headers={"Authorization": f"Bearer {admin_token}"})
+    assert boxes_resp.status_code == 200
+    boxes_data = boxes_resp.json()
+    assert boxes_data["status"] == "processing"
+    assert boxes_data["tokens"] == []
+    assert "not ready yet" in boxes_data["message"].lower()
+
+

@@ -379,11 +379,26 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
                     }
 
                     // Highlight matching tokens if activeTokenHighlight matches
-                    const isMatched =
-                      activeTokenHighlight &&
-                      tok.text &&
-                      (activeTokenHighlight.toLowerCase().includes(tok.text.toLowerCase()) ||
-                       tok.text.toLowerCase().includes(activeTokenHighlight.toLowerCase()));
+                    const isMatched = (() => {
+                      if (!activeTokenHighlight || !tok.text) return false;
+                      const target = activeTokenHighlight.trim().toLowerCase();
+                      const tokenStr = tok.text.trim().toLowerCase();
+                      if (!target || !tokenStr) return false;
+
+                      // Exact match (e.g. "451/2" === "451/2", "78-B" === "78-b")
+                      if (target === tokenStr) return true;
+
+                      // Clean punctuation for word-level matching
+                      const cleanToken = tokenStr.replace(/[^\w\s\u0900-\u0D7F]/g, '');
+                      if (cleanToken.length < 2) return false; // avoid single-letter accidental collisions
+
+                      const cleanTarget = target.replace(/[^\w\s\u0900-\u0D7F]/g, ' ');
+                      const words = cleanTarget.split(/\s+/).filter((w) => w.length >= 2);
+
+                      return words.some(
+                        (w) => w === cleanToken || (cleanToken.length >= 4 && w.includes(cleanToken))
+                      );
+                    })();
 
                     if (isMatched) {
                       borderColor = '#38bdf8';
