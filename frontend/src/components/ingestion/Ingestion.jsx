@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { documentsApi, createDocumentEventSource } from '../../api/client';
 import { IconUpload, IconFile, IconCheck, IconShield, IconAlert } from '../common/Icons';
 
 export default function Ingestion({ onOpenWorkspace, showToast }) {
+  const { t } = useTranslation();
   // Form state
   const [file, setFile] = useState(null);
   const [district, setDistrict] = useState('');
@@ -86,7 +88,7 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
 
     try {
       const res = await documentsApi.upload(formData);
-      showToast?.(`Document #${res.id} ingested successfully. Connecting to real-time pipeline...`, 'success');
+      showToast?.(t('ingestion.toast_ingested', { id: res.id }), 'success');
 
       // Switch to live SSE stepper
       setStreamingDoc(res);
@@ -140,14 +142,14 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
           setProgressPercent(100);
           setPipelineFinished(true);
           setPipelineStatus(data.status || 'verified');
-          showToast?.(`Pipeline complete for Document #${docId}! Ready for verification.`, 'success');
+          showToast?.(t('ingestion.toast_pipeline_complete', { docId }), 'success');
           if (eventSourceRef.current) {
             eventSourceRef.current.close();
           }
         } else if (data.event === 'error') {
           setPipelineFinished(true);
           setPipelineStatus(data.status || 'needs_review');
-          showToast?.(`Pipeline note: ${data.message || 'Needs review'}`, 'info');
+          showToast?.(t('ingestion.toast_pipeline_note', { message: data.message || 'Needs review' }), 'info');
           if (eventSourceRef.current) {
             eventSourceRef.current.close();
           }
@@ -178,11 +180,11 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
   };
 
   const steps = [
-    { id: 'uploaded', num: 1, title: 'Ingest & SHA-256' },
-    { id: 'ocr', num: 2, title: 'OCR Recognition' },
-    { id: 'extraction', num: 3, title: 'Field Extraction' },
-    { id: 'validation', num: 4, title: 'Validation & Fraud' },
-    { id: 'complete', num: 5, title: 'Verification Ready' },
+    { id: 'uploaded', num: 1, title: t('ingestion.live_status.uploading') },
+    { id: 'ocr', num: 2, title: t('ingestion.live_status.ocr') },
+    { id: 'extraction', num: 3, title: t('ingestion.live_status.extract') },
+    { id: 'validation', num: 4, title: t('ingestion.live_status.validate') },
+    { id: 'complete', num: 5, title: t('ingestion.live_status.ready') },
   ];
 
   return (
@@ -191,9 +193,9 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
         <div className="card">
           <div className="card-header">
             <div>
-              <h2 className="card-title">Ingest Land Record Document</h2>
+              <h2 className="card-title">{t('ingestion.title')}</h2>
               <div className="card-subtitle">
-                Accepts scanned title deeds, revenue registers, and cadastral maps (PDF / Images $\le$ 25MB)
+                {t('ingestion.subtitle')}
               </div>
             </div>
           </div>
@@ -222,10 +224,10 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
                   <IconUpload size={36} />
                 </div>
                 <div style={{ fontWeight: 700, color: 'var(--gov-navy-900)', fontSize: 14 }}>
-                  Click to select or drag & drop deed file
+                  {t('ingestion.dropzone_title')}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--slate-500)', marginTop: 4 }}>
-                  Supported formats: PDF, PNG, JPG, JPEG, TIFF, WEBP (Max 25 MB)
+                  {t('ingestion.dropzone_sub')}
                 </div>
 
                 <input
@@ -256,7 +258,7 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label" htmlFor="meta-district">
-                      Revenue District
+                      {t('ingestion.district_label')}
                     </label>
                     <input
                       id="meta-district"
@@ -270,7 +272,7 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
 
                   <div className="form-group">
                     <label className="form-label" htmlFor="meta-tehsil">
-                      Tehsil / Sub-District
+                      {t('ingestion.tehsil_label')}
                     </label>
                     <input
                       id="meta-tehsil"
@@ -284,7 +286,7 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
 
                   <div className="form-group">
                     <label className="form-label" htmlFor="meta-village">
-                      Village / Mauza
+                      {t('ingestion.village_label')}
                     </label>
                     <input
                       id="meta-village"
@@ -305,11 +307,11 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
                   onClick={handleResetForm}
                   disabled={isUploading}
                 >
-                  Clear
+                  {t('ingestion.btn_clear')}
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={isUploading}>
                   <IconUpload size={14} />
-                  {isUploading ? 'Ingesting Deed...' : 'Start Ingestion & OCR Pipeline'}
+                  {isUploading ? t('ingestion.uploading_deed') : t('ingestion.start_pipeline')}
                 </button>
               </div>
             </form>
@@ -320,9 +322,9 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
         <div className="card">
           <div className="card-header">
             <div>
-              <h2 className="card-title">Real-Time Pipeline Processing Stream</h2>
+              <h2 className="card-title">{t('ingestion.stepper_title')}</h2>
               <div className="card-subtitle">
-                Record #{streamingDoc?.id}: {streamingDoc?.filename}
+                {t('ingestion.record_label', { id: streamingDoc?.id })}: {streamingDoc?.filename}
               </div>
             </div>
             <span
@@ -335,7 +337,7 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
               }`}
             >
               <span className={`status-dot status-dot-${pipelineFinished ? pipelineStatus : 'processing'}`} />
-              {pipelineFinished ? pipelineStatus.replace('_', ' ') : 'Processing'}
+              {pipelineFinished ? (t(`registry.status.${pipelineStatus}`) || pipelineStatus.replace('_', ' ')) : t('registry.status.processing')}
             </span>
           </div>
 
@@ -364,7 +366,7 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
                     </div>
                     <div className="stepper-step-title">{step.title}</div>
                     <div className="stepper-step-status">
-                      {isCompleted ? 'Completed' : isActive ? 'Processing' : 'Queued'}
+                      {isCompleted ? t('ingestion.step_completed') : isActive ? t('registry.status.processing') : t('registry.status.queued')}
                     </div>
                   </div>
                 );
@@ -402,7 +404,7 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
               }}
             >
               <button className="btn btn-outline btn-sm" onClick={handleResetForm}>
-                ← Ingest Another Deed
+                {t('ingestion.ingest_another')}
               </button>
 
               {pipelineFinished && (
@@ -411,7 +413,7 @@ export default function Ingestion({ onOpenWorkspace, showToast }) {
                   onClick={() => onOpenWorkspace(streamingDoc?.id)}
                 >
                   <IconShield size={14} />
-                  Open in Verification Workspace →
+                  {t('ingestion.open_workspace')}
                 </button>
               )}
             </div>

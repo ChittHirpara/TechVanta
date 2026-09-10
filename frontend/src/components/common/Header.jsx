@@ -1,20 +1,23 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { IconEmblem, IconUser, IconLock } from './Icons';
+import { LANGUAGES } from '../../i18n/languages';
 
 export default function Header({ onOpenAuth }) {
+  const { t, i18n } = useTranslation();
   const { user, isAuthenticated, logout } = useAuth();
 
   const roleLabels = {
-    admin: 'Administrator',
-    verifier: 'Verifying Officer',
-    field_officer: 'Field Officer',
+    admin: t('header.roles.admin'),
+    verifier: t('header.roles.verifier'),
+    field_officer: t('header.roles.field_officer'),
   };
 
   return (
     <header className="portal-header">
       <div className="brand-container">
-        <div className="national-emblem-badge" title="National Land Records Sovereign Platform">
+        <div className="national-emblem-badge" title={t('header.emblem_title')}>
           <IconEmblem size={22} />
         </div>
         <div className="brand-text">
@@ -22,11 +25,24 @@ export default function Header({ onOpenAuth }) {
             BhoomiScan AI
             <span className="hindi-title">भूमिस्कैन एआई</span>
           </h1>
-          <p>Autonomous Land Record Digitization, Semantic Verification & Sovereign Governance</p>
+          <p>{t('header.tagline')}</p>
         </div>
       </div>
 
       <div className="header-user-panel">
+        <select
+          className="lang-select"
+          value={i18n.language || 'en'}
+          onChange={(e) => i18n.changeLanguage(e.target.value)}
+          aria-label={t('header.language')}
+        >
+          {LANGUAGES.map((lang) => (
+            <option key={lang.code} value={lang.code}>
+              {lang.code === 'en' ? 'English' : `${lang.nativeName} (${lang.name})`}
+            </option>
+          ))}
+        </select>
+
         {isAuthenticated && user ? (
           <>
             <div className="user-pill">
@@ -39,7 +55,7 @@ export default function Header({ onOpenAuth }) {
               </span>
             </div>
             <button className="btn btn-header-outline btn-sm" onClick={logout}>
-              Sign Out
+              {t('header.sign_out')}
             </button>
           </>
         ) : (
@@ -49,13 +65,13 @@ export default function Header({ onOpenAuth }) {
               onClick={() => onOpenAuth('login')}
             >
               <IconLock size={13} />
-              Sign In
+              {t('header.sign_in')}
             </button>
             <button
               className="btn btn-saffron btn-sm"
               onClick={() => onOpenAuth('register')}
             >
-              Register Officer
+              {t('header.register_officer')}
             </button>
           </>
         )}

@@ -443,6 +443,48 @@ main.portal-main {
   border-radius: var(--radius-xs);
 }
 
+.lang-select {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  border-radius: var(--radius-xs);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.lang-select:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.lang-select:focus {
+  border-color: var(--saffron-500);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+.lang-select option {
+  background: var(--gov-navy-900);
+  color: #ffffff;
+  padding: 6px;
+}
+
+/* ── RTL Scoped Text Handling ── */
+.lang-rtl [dir="rtl"],
+.lang-rtl .rtl-text {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Dynamic Font Fallbacks for 8th Schedule Scripts */
+:lang(sat) {
+  font-family: 'Noto Sans Ol Chiki', var(--font-sans);
+}
+:lang(mni) {
+  font-family: 'Noto Sans Meetei Mayek', var(--font-sans);
+}
+
 /* ── Badges & Status Pills ── */
 .badge {
   display: inline-flex;

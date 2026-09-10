@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { documentsApi } from '../../api/client';
 
 export default function AuditModal({ isOpen, docId, onClose }) {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -24,7 +26,7 @@ export default function AuditModal({ isOpen, docId, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" style={{ maxWidth: 680 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 className="card-title">📜 Tamper-Evident Audit Trail — Record #{docId}</h3>
+          <h3 className="card-title">📜 {t('modals.audit.title')} — {t('modals.audit.record_header', { id: docId })}</h3>
           <button className="btn btn-outline btn-sm" onClick={onClose}>
             ✕
           </button>
@@ -33,20 +35,20 @@ export default function AuditModal({ isOpen, docId, onClose }) {
         <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
           {isLoading ? (
             <div style={{ padding: 24, textAlign: 'center', color: 'var(--slate-500)' }}>
-              Loading chronological audit events...
+              {t('modals.audit.loading')}
             </div>
           ) : error ? (
             <div className="gov-alert gov-alert-danger">{error}</div>
           ) : logs.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: 'var(--slate-500)' }}>
-              No audit logs recorded for this document yet.
+              {t('modals.audit.empty')}
             </div>
           ) : (
             <div style={{ position: 'relative', paddingLeft: 24, borderLeft: '2px solid var(--slate-200)' }}>
               {logs.map((item, idx) => {
                 const dateStr = item.timestamp
                   ? new Date(item.timestamp).toLocaleString()
-                  : 'Timestamp recorded';
+                  : t('modals.audit.timestamp');
                 return (
                   <div key={idx} style={{ position: 'relative', marginBottom: 20 }}>
                     {/* Timeline bullet dot */}
@@ -66,7 +68,7 @@ export default function AuditModal({ isOpen, docId, onClose }) {
                       {item.action}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--slate-500)', margin: '2px 0 6px' }}>
-                      Actor: <strong>{item.user_id ? `User #${item.user_id}` : 'System Pipeline'}</strong> • {dateStr}
+                      {t('modals.audit.actor')} <strong>{item.user_id ? t('modals.audit.user_label', { id: item.user_id }) : t('modals.audit.system_pipeline')}</strong> • {dateStr}
                     </div>
                     {item.details && (
                       <pre
@@ -94,7 +96,7 @@ export default function AuditModal({ isOpen, docId, onClose }) {
 
         <div className="modal-footer">
           <button className="btn btn-outline" onClick={onClose}>
-            Close
+            {t('modals.close')}
           </button>
         </div>
       </div>

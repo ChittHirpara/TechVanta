@@ -1,0 +1,300 @@
+{
+  "gov_strip": {
+    "title": "GOVERNMENT OF INDIA",
+    "sub": "Department of Land Resources & Revenue Administration",
+    "dilrmp": "DIGITAL INDIA LAND RECORDS MODERNIZATION PROGRAMME (DILRMP)",
+    "node_active": "Sovereign Node Active",
+    "gigw": "GIGW Compliant"
+  },
+  "header": {
+    "title": "BhoomiScan AI",
+    "hindi_title": "भूमिस्कैन एआई",
+    "tagline": "Automated Land Record Digitization, Semantic Verification & Sovereign Governance",
+    "emblem_title": "National Land Records Sovereign Platform",
+    "sign_in": "Sign In",
+    "sign_out": "Sign Out",
+    "register_officer": "Register Officer",
+    "language": "Language",
+    "roles": {
+      "admin": "Administrator",
+      "verifier": "Verifying Officer",
+      "field_officer": "Field Officer"
+    },
+    "brand_name": "BhoomiScan AI",
+    "brand_subtitle": "भूमिस्कैन एआई"
+  },
+  "nav": {
+    "dashboard": "Operations Dashboard",
+    "registry": "Land Record Registry",
+    "ingestion": "Upload Land Record",
+    "workspace": "Verification Workspace #{{id}}",
+    "version": "v1.0.0"
+  },
+  "dashboard": {
+    "title": "Revenue Operations Command Center",
+    "refresh": "Refresh Metrics",
+    "jurisdiction_scoped": "Analytics and records are currently scoped to your personal jurisdiction ({{jurisdiction}})",
+    "stats": {
+      "total_deeds": "Total Registered Deeds",
+      "total_deeds_desc": "Total deeds ingested into system",
+      "needs_review": "Needs Review",
+      "needs_review_desc": "Low confidence or validation alerts",
+      "verified_sealed": "Verified & Digitally Signed",
+      "verified_sealed_desc": "Signed off by Verifying Officers",
+      "avg_confidence": "Avg Extraction Reliability",
+      "avg_confidence_desc": "Across all extracted entity fields",
+      "completion_rate": "Completion Rate",
+      "field_officer_mode": "Field Officer Mode",
+      "awaiting_audit": "Awaiting officer manual audit"
+    },
+    "district_breakdown": {
+      "title": "Jurisdictional Digitization Progress",
+      "subtitle": "Real-time breakdown across revenue districts",
+      "district": "District",
+      "total": "Total Records",
+      "verified": "Verified",
+      "flagged": "Marked Fields for Review",
+      "completion": "Completion Rate"
+    },
+    "pipeline_latency": {
+      "title": "System Workflow",
+      "ocr_recognition": "OCR Recognition",
+      "field_extraction": "Field Extraction",
+      "validation_fraud": "Validation & Fraud"
+    },
+    "loading_metrics": "Loading jurisdictional metrics...",
+    "no_districts": "No district records indexed yet. Upload land records to see jurisdictional progress.",
+    "unassigned_district": "Unassigned District"
+  },
+  "ingestion": {
+    "title": "Upload Land Record Document",
+    "subtitle": "Automated Land Record Digitization, Semantic Verification & Sovereign Governance",
+    "dropzone_title": "Click to select or drag land record file to attach",
+    "dropzone_sub": "Supported formats: PDF, PNG, JPG, JPEG, TIFF, WEBP (Max 25 MB)",
+    "jurisdiction_label": "Jurisdiction (District / Tehsil / Village)",
+    "start_pipeline": "Start Document Intake & OCR Workflow",
+    "reprocess": "Reprocess",
+    "stepper_title": "Real-Time Verification Workflow Activity",
+    "live_status": {
+      "uploading": "Upload & SHA-256",
+      "ocr": "Multimodal OCR",
+      "extract": "NER Semantic Field Extraction",
+      "validate": "Cross-Registry Verification",
+      "ready": "Verification Ready"
+    },
+    "ingest_another": "← Upload Another Deed",
+    "open_workspace": "Open Verification Workspace →",
+    "district_label": "Revenue District",
+    "tehsil_label": "Tehsil / Sub-District",
+    "village_label": "Village / Mauza",
+    "btn_clear": "Clear",
+    "uploading_deed": "Uploading Land Record...",
+    "record_label": "Record #{{id}}",
+    "step_completed": "Completed",
+    "toast_ingested": "Document #{{id}} uploaded successfully. Connecting to real-time workflow...",
+    "toast_pipeline_complete": "Workflow complete for Document #{{docId}}! Ready for verification.",
+    "toast_pipeline_note": "Workflow note: {{message}}"
+  },
+  "registry": {
+    "title": "Land Record Document Registry",
+    "subtitle": "Digital India Land Records Modernization Technical Specifications",
+    "search_placeholder": "Search by filename, district, or survey #...",
+    "filter_all": "All Statuses",
+    "filter_district": "Filter district...",
+    "ingest_new": "Upload New Document",
+    "columns": {
+      "doc_id": "Record ID",
+      "filename": "Document Filename",
+      "jurisdiction": "Jurisdiction",
+      "status": "Status",
+      "confidence": "Reliability",
+      "uploaded_date": "Uploaded Date",
+      "action": "Action"
+    },
+    "status": {
+      "uploaded": "Uploaded",
+      "processing": "Processing",
+      "needs_review": "Needs Review",
+      "verified": "Verified",
+      "queued": "Queued"
+    },
+    "actions": {
+      "verify": "Audit / Verify",
+      "view": "View Record"
+    },
+    "btn_reset": "Reset",
+    "loading": "Loading land records registry...",
+    "empty": "No land records found matching the active filters.",
+    "prev_page": "← Previous",
+    "next_page": "Next →",
+    "page_info": "Page {{page}} of {{totalPages}}"
+  },
+  "workspace": {
+    "preview_title": "Scanned Deed Document Viewer",
+    "extract_title": "Extracted Legal Entities & Reliability Scores",
+    "btn_verify": "Sign & Verify Record",
+    "btn_signing": "Signing...",
+    "btn_verified": "Verified & Digitally Signed",
+    "btn_push_lrms": "Submit to State LRMS",
+    "btn_push_gis": "Submit to State GIS Portal",
+    "btn_dilrmp_export": "📋 DILRMP 2.0 Standard National Export",
+    "btn_certificate": "Official Certificate",
+    "btn_reprocess": "Reprocess",
+    "tabs": {
+      "entities": "Entities",
+      "audit_trail": "Audit Trail"
+    },
+    "labels": {
+      "field_identifier": "Field Identifier",
+      "extracted_value": "Extracted Value",
+      "confidence": "Reliability",
+      "actions": "Actions",
+      "correct_field": "✏️ Correct Extracted Field",
+      "crypto_seal": "Cryptographic Verification:",
+      "sha_seal": "SHA-256 File Integrity Hash:",
+      "certificate_banner": "View and print official sovereign verification certificate with tamper-evident QR verification code",
+      "fraud_shield_warning": "Fraud Shield Warning — Potential Duplicate Land Record Detected:",
+      "status_secured_verified": "SECURED_VERIFIED",
+      "jurisdiction": "Jurisdiction:"
+    },
+    "btn_back_registry": "← Back to Registry",
+    "btn_download_original": "Download Original",
+    "inspect_subtitle": "Inspect extracted survey numbers, owners, and endorsement details before verification",
+    "no_fields_extracted": "No entity fields extracted yet. Document may still be processing.",
+    "gateways_title": "State Revenue Gateways (Mock Integrations)",
+    "gateways_disclaimer": "*Official gateway for Land Records Modernization System & Cadastral GIS layers.",
+    "viewer_title": "Scanned Deed Document Viewer",
+    "connecting": "Connecting...",
+    "tooltips": {
+      "reprocess_blocked": "Field Officers cannot reprocess documents.",
+      "verify_blocked": "Access restricted to Verifying Officers and Admins.",
+      "already_verified": "Document is already verified.",
+      "edit_blocked": "Field Officers cannot edit extracted fields.",
+      "push_blocked": "Field Officers cannot transfer integrations."
+    },
+    "toasts": {
+      "verified": "Document #{{docId}} verified with digital signature!",
+      "verify_blocked": "Verification blocked: {{err}}",
+      "reprocess_triggered": "Reprocessing triggered for Document #{{docId}}.",
+      "reprocess_failed": "Reprocess request failed: {{err}}",
+      "pushed": "Transferred to {{system}}! Reference: {{reference_id}} ({{status}})",
+      "push_failed": "Gateway transfer failed: {{err}}"
+    }
+  },
+  "modals": {
+    "close": "Close modal",
+    "auth": {
+      "title_login": "Sign In to Portal",
+      "title_register": "Complete Officer Registration",
+      "officer_id": "Officer ID / Email",
+      "password": "Enter authorized password",
+      "passphrase": "Create a strong passphrase",
+      "role": "Role",
+      "field_officer_desc": "Field Officer (Patwari / Talati) — Scoped Document Intake & Review",
+      "verifier_desc": "Verifying Officer (Tehsildar / Naib Tehsildar) — Verification Sign-Off",
+      "admin_desc": "District Administrator — Full System Governance"
+    },
+    "field": {
+      "title": "✏️ Correct Extracted Field",
+      "entity_field": "Entity Field",
+      "original_value": "Original Extracted Value",
+      "corrected_value": "Corrected Sovereign Value *",
+      "reason": "Officer Audit Reason / Note",
+      "reason_placeholder": "e.g. Corrected spelling per scanned deed document",
+      "confirm": "Confirm Correction",
+      "empty_val": "(Empty)",
+      "toast_updated": "Field '{{fieldName}}' updated successfully!"
+    },
+    "audit": {
+      "title": "Audit Trail & Provenance Log",
+      "action": "Action",
+      "timestamp": "Timestamp recorded",
+      "system_pipeline": "System Workflow",
+      "loading": "Loading chronological audit events...",
+      "empty": "No audit logs recorded for this document yet.",
+      "actor": "Actor:",
+      "user_label": "User #{{id}}",
+      "record_header": "Record #{{id}}"
+    },
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "dilrmp": {
+      "schema_line1": "Standardized revenue interchange schema conforming to the",
+      "schema_line2": "Digital India Land Records Modernization Technical Specifications",
+      "generating": "Generating DILRMP 2.0 standard payload...",
+      "btn_copy": "Copy JSON",
+      "btn_download": "Download File",
+      "toast_copied": "DILRMP 2.0 JSON payload copied to clipboard!",
+      "toast_downloaded": "Downloaded DILRMP_Record_{{docId}}.json"
+    },
+    "duplicate": {
+      "title": "Fraud Shield — Dual-Title & Parcel Conflict Comparison",
+      "suspected_overlap": "Suspected duplicate overlap detected with",
+      "token_similarity": "{{score}}% token-set similarity",
+      "confidence_unavailable": "reliability score unavailable",
+      "dispute_title": "Potential Revenue Act Title Dispute:",
+      "dispute_desc": "Two separate documents reference overlapping parcel or ownership coordinates. Review discrepancies below before verifying.",
+      "loading": "Loading conflicting document details...",
+      "parcel_attribute": "Parcel Attribute",
+      "current_ingestion_label": "Current Upload #{{id}} ({{filename}})",
+      "existing_registry_label": "Existing Registry #{{id}} ({{filename}})",
+      "existing_record": "Existing Record",
+      "mismatch_conflict": "Mismatch Conflict",
+      "duplicate_overlap": "Duplicate Overlap",
+      "audit_note": "Audit log records this conflict review session automatically."
+    }
+  },
+  "app": {
+    "document_title": "BhoomiScan AI — Sovereign Land Record Verification Studio",
+    "loading_portal": "Initializing BhoomiScan AI Portal...",
+    "loading_subtext": "Verifying sovereign security credentials & endpoints",
+    "dept_banner_title": "Department of Land Resources & Revenue Administration:",
+    "dept_banner_desc": "Authorized departmental access required. Please sign in to access jurisdiction records, verification queues, and GIS gateway transfer integrations.",
+    "dept_access_title": "Official Departmental Access",
+    "dept_access_desc": "Access role-governed verification queues for Field Officers (Patwaris), Verifying Officers (Tehsildars), and District Administrators.",
+    "sign_in_workspace": "Sign In to Workspace",
+    "new_officer_reg": "New Officer Registration",
+    "architecture_title": "System Architecture & Standards",
+    "ocr_title": "Multimodal OCR:",
+    "ocr_desc": "EasyOCR deep learning + Tesseract cascade for Indic scripts.",
+    "dilrmp_title": "DILRMP 2.0:",
+    "dilrmp_desc": "Automated 14-digit ULPIN allocation & cadastral mapping.",
+    "crypto_title": "Cryptographic Verification:",
+    "crypto_desc": "SHA-256 tamper-evident integrity hashing.",
+    "fraud_title": "Fraud Shield:",
+    "fraud_desc": "Token-set approximate duplicate record detection against registry.",
+    "footer_line1": "BhoomiScan AI • National Land Record Modernization & AI Verification Engine",
+    "footer_line2": "Smart India Hackathon (SIH) Innovation • GIGW & DILRMP 2.0 Compliant"
+  },
+  "cadastral": {
+    "panel_title": "Cadastral GIS & Geolocation Boundary Inspector",
+    "survey_prefix": "Survey #{{number}}",
+    "expand_btn": "Expand GIS Map ▼",
+    "collapse_btn": "Collapse GIS Panel ▲",
+    "cadastral_layer": "Cadastral Layer:",
+    "parcel_declared": "DILRMP Geo-referenced Khasra Parcel #{{khasraNumber}} (Declared Area: {{plotArea}})",
+    "grid_view": "Cadastral Grid",
+    "satellite_view": "Satellite Hybrid",
+    "datum_verified": "Survey Scale: 1:1000 • Datum: WGS-84 • DILRMP Geo-tag Verified",
+    "parcel_label": "Parcel {{number}}"
+  },
+  "auth_modal": {
+    "title_login_header": "Official Departmental Sign In",
+    "title_register_header": "New Officer Registration",
+    "tab_login": "Existing Officer Sign In",
+    "tab_register": "New Officer Registration",
+    "label_username_login": "Official Username / Employee ID",
+    "label_password": "Security Password",
+    "placeholder_password": "Enter authorized password",
+    "label_username_register": "Official Username *",
+    "label_fullname": "Full Legal Name",
+    "label_email": "Official Email Address *",
+    "label_password_register": "Password (Minimum 8 Characters) *",
+    "label_role": "Departmental Role & Jurisdiction *",
+    "btn_cancel": "Cancel",
+    "btn_verifying": "Verifying...",
+    "btn_registering": "Registering...",
+    "toast_welcome": "Welcome back, Officer {{name}}!",
+    "toast_registered": "Officer account '{{username}}' registered successfully! Please sign in."
+  }
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconAlert, IconClose, IconFile, IconShield } from '../common/Icons';
 import { documentsApi } from '../../api/client';
 
@@ -9,6 +10,7 @@ export default function DuplicateCompareModal({
   currentFields = [],
   duplicateMatch,
 }) {
+  const { t } = useTranslation();
   const [targetDoc, setTargetDoc] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -60,19 +62,19 @@ export default function DuplicateCompareModal({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: 16, color: '#991b1b', fontWeight: 700 }}>
-                Fraud Shield — Dual-Title & Parcel Conflict Comparison
+                {t('modals.duplicate.title')}
               </h3>
               <div style={{ fontSize: 12, color: '#b91c1c' }}>
-                Suspected duplicate overlap detected with{' '}
+                {t('modals.duplicate.suspected_overlap')}{' '}
                 <strong>
                   {duplicateMatch?.combined_score !== undefined && duplicateMatch?.combined_score !== null
-                    ? `${Math.round(duplicateMatch.combined_score)}% token-set similarity`
-                    : 'confidence score unavailable'}
+                    ? t('modals.duplicate.token_similarity', { score: Math.round(duplicateMatch.combined_score) })
+                    : t('modals.duplicate.confidence_unavailable')}
                 </strong>
               </div>
             </div>
           </div>
-          <button className="btn-icon" onClick={onClose} aria-label="Close modal">
+          <button className="btn-icon" onClick={onClose} aria-label={t('modals.close')}>
             <IconClose size={18} />
           </button>
         </div>
@@ -82,25 +84,25 @@ export default function DuplicateCompareModal({
           <div className="gov-alert gov-alert-danger" style={{ marginBottom: 16 }}>
             <IconShield size={18} />
             <div>
-              <strong>Potential Revenue Act Title Dispute:</strong> Two separate documents reference overlapping parcel or ownership coordinates. Review discrepancies below before verifying.
+              <strong>{t('modals.duplicate.dispute_title')}</strong> {t('modals.duplicate.dispute_desc')}
             </div>
           </div>
 
           {isLoading ? (
             <div style={{ textAlign: 'center', padding: 32, color: 'var(--slate-500)' }}>
-              Loading conflicting document details...
+              {t('modals.duplicate.loading')}
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table className="gov-table" style={{ width: '100%', fontSize: 13 }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '25%' }}>Parcel Attribute</th>
+                    <th style={{ width: '25%' }}>{t('modals.duplicate.parcel_attribute')}</th>
                     <th style={{ width: '37%', background: '#f0f4f9' }}>
-                      Current Ingestion #{currentDoc?.id} ({currentDoc?.filename})
+                      {t('modals.duplicate.current_ingestion_label', { id: currentDoc?.id, filename: currentDoc?.filename })}
                     </th>
                     <th style={{ width: '38%', background: '#fffbeb' }}>
-                      Existing Registry #{targetDoc?.id || duplicateMatch?.document_id} ({targetDoc?.filename || 'Existing Record'})
+                      {t('modals.duplicate.existing_registry_label', { id: targetDoc?.id || duplicateMatch?.document_id, filename: targetDoc?.filename || t('modals.duplicate.existing_record') })}
                     </th>
                   </tr>
                 </thead>
@@ -136,7 +138,7 @@ export default function DuplicateCompareModal({
                                 borderRadius: 4,
                               }}
                             >
-                              Mismatch Conflict
+                              {t('modals.duplicate.mismatch_conflict')}
                             </span>
                           )}
                           {isExactMatch && (
@@ -150,7 +152,7 @@ export default function DuplicateCompareModal({
                                 borderRadius: 4,
                               }}
                             >
-                              Duplicate Overlap
+                              {t('modals.duplicate.duplicate_overlap')}
                             </span>
                           )}
                         </td>
@@ -166,10 +168,10 @@ export default function DuplicateCompareModal({
         {/* Modal Footer */}
         <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 11, color: 'var(--slate-500)' }}>
-            Audit log records this conflict review session automatically.
+            {t('modals.duplicate.audit_note')}
           </div>
           <button className="btn btn-outline btn-sm" onClick={onClose}>
-            Close Comparison
+            {t('modals.close')}
           </button>
         </div>
       </div>

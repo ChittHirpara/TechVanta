@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { documentsApi } from '../../api/client';
 
 export default function FieldModal({ isOpen, docId, field, onClose, onUpdated, showToast }) {
+  const { t } = useTranslation();
   const [newVal, setNewVal] = useState('');
   const [note, setNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -28,7 +30,7 @@ export default function FieldModal({ isOpen, docId, field, onClose, onUpdated, s
         note: note.trim() || null,
       });
 
-      showToast?.(`Field '${field.field_name}' updated successfully!`, 'success');
+      showToast?.(t('modals.field.toast_updated', { fieldName: field.field_name }), 'success');
       onUpdated?.();
       onClose();
     } catch (err) {
@@ -42,7 +44,7 @@ export default function FieldModal({ isOpen, docId, field, onClose, onUpdated, s
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 className="card-title">✏️ Correct Extracted Field</h3>
+          <h3 className="card-title">{t('modals.field.title')}</h3>
           <button className="btn btn-outline btn-sm" onClick={onClose}>
             ✕
           </button>
@@ -57,7 +59,7 @@ export default function FieldModal({ isOpen, docId, field, onClose, onUpdated, s
             )}
 
             <div className="form-group">
-              <label className="form-label">Field Identifier</label>
+              <label className="form-label">{t('modals.field.entity_field')}</label>
               <input
                 type="text"
                 className="form-control"
@@ -68,18 +70,18 @@ export default function FieldModal({ isOpen, docId, field, onClose, onUpdated, s
             </div>
 
             <div className="form-group">
-              <label className="form-label">Original Extracted Value</label>
+              <label className="form-label">{t('modals.field.original_value')}</label>
               <input
                 type="text"
                 className="form-control"
-                value={field.value || '(Empty)'}
+                value={field.value || t('modals.field.empty_val')}
                 disabled
                 style={{ background: 'var(--slate-100)' }}
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label">Corrected Sovereign Value *</label>
+              <label className="form-label">{t('modals.field.corrected_value')}</label>
               <input
                 type="text"
                 className="form-control"
@@ -91,11 +93,11 @@ export default function FieldModal({ isOpen, docId, field, onClose, onUpdated, s
             </div>
 
             <div className="form-group">
-              <label className="form-label">Officer Audit Reason / Note</label>
+              <label className="form-label">{t('modals.field.reason')}</label>
               <input
                 type="text"
                 className="form-control"
-                placeholder="e.g. Corrected spelling per scanned deed stamp"
+                placeholder={t('modals.field.reason_placeholder')}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
@@ -104,10 +106,10 @@ export default function FieldModal({ isOpen, docId, field, onClose, onUpdated, s
 
           <div className="modal-footer">
             <button type="button" className="btn btn-outline" onClick={onClose}>
-              Cancel
+              {t('modals.cancel')}
             </button>
             <button type="submit" className="btn btn-primary" disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Confirm Correction'}
+              {isSaving ? t('modals.saving') : t('modals.field.confirm')}
             </button>
           </div>
         </form>

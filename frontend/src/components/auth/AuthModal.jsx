@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuccess, showToast }) {
+  const { t } = useTranslation();
   const { login, register } = useAuth();
   const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -29,7 +31,7 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
 
     try {
       const user = await login(loginUsername.trim(), loginPassword);
-      showToast?.(`Welcome back, Officer ${user.full_name || user.username}!`, 'success');
+      showToast?.(t('auth_modal.toast_welcome', { name: user.full_name || user.username }), 'success');
       onSuccess?.();
       onClose();
     } catch (err) {
@@ -54,7 +56,7 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
       };
 
       const newUser = await register(payload);
-      showToast?.(`Officer account '${newUser.username}' registered successfully! Please sign in.`, 'success');
+      showToast?.(t('auth_modal.toast_registered', { username: newUser.username }), 'success');
       setActiveTab('login');
       setLoginUsername(newUser.username);
       setLoginPassword('');
@@ -70,7 +72,7 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3 className="card-title">
-            {activeTab === 'login' ? '🔐 Official Departmental Sign In' : '📝 New Officer Registration'}
+            {activeTab === 'login' ? `🔐 ${t('auth_modal.title_login_header')}` : `📝 ${t('auth_modal.title_register_header')}`}
           </h3>
           <button className="btn btn-outline btn-sm" onClick={onClose}>
             ✕
@@ -96,7 +98,7 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
               setErrorMsg('');
             }}
           >
-            Existing Officer Sign In
+            {t('auth_modal.tab_login')}
           </button>
           <button
             type="button"
@@ -115,7 +117,7 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
               setErrorMsg('');
             }}
           >
-            New Officer Registration
+            {t('auth_modal.tab_register')}
           </button>
         </div>
 
@@ -130,7 +132,7 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
             <form onSubmit={handleLoginSubmit}>
               <div className="form-group">
                 <label className="form-label" htmlFor="login-username">
-                  Official Username / Employee ID
+                  {t('auth_modal.label_username_login')}
                 </label>
                 <input
                   id="login-username"
@@ -146,13 +148,13 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
 
               <div className="form-group">
                 <label className="form-label" htmlFor="login-password">
-                  Security Password
+                  {t('auth_modal.label_password')}
                 </label>
                 <input
                   id="login-password"
                   type="password"
                   className="form-control"
-                  placeholder="Enter authorized password"
+                  placeholder={t('auth_modal.placeholder_password')}
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
@@ -161,10 +163,10 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
                 <button type="button" className="btn btn-outline" onClick={onClose}>
-                  Cancel
+                  {t('auth_modal.btn_cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={isLoading}>
-                  {isLoading ? 'Verifying...' : 'Sign In to Portal'}
+                  {isLoading ? t('auth_modal.btn_verifying') : t('modals.auth.title_login')}
                 </button>
               </div>
             </form>
@@ -172,7 +174,7 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
             <form onSubmit={handleRegisterSubmit}>
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-username">
-                  Official Username *
+                  {t('auth_modal.label_username_register')}
                 </label>
                 <input
                   id="reg-username"
@@ -188,7 +190,7 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
 
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-fullname">
-                  Full Legal Name
+                  {t('auth_modal.label_fullname')}
                 </label>
                 <input
                   id="reg-fullname"
@@ -202,7 +204,7 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
 
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-email">
-                  Official Email Address *
+                  {t('auth_modal.label_email')}
                 </label>
                 <input
                   id="reg-email"
@@ -217,13 +219,13 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
 
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-password">
-                  Password (Minimum 8 Characters) *
+                  {t('auth_modal.label_password_register')}
                 </label>
                 <input
                   id="reg-password"
                   type="password"
                   className="form-control"
-                  placeholder="Create a strong passphrase"
+                  placeholder={t('modals.auth.passphrase')}
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                   required
@@ -233,7 +235,7 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
 
               <div className="form-group">
                 <label className="form-label" htmlFor="reg-role">
-                  Departmental Role & Jurisdiction *
+                  {t('auth_modal.label_role')}
                 </label>
                 <select
                   id="reg-role"
@@ -241,18 +243,18 @@ export default function AuthModal({ isOpen, initialTab = 'login', onClose, onSuc
                   value={regRole}
                   onChange={(e) => setRegRole(e.target.value)}
                 >
-                  <option value="field_officer">Field Officer (Patwari / Talati) — Scoped Ingestion & Review</option>
-                  <option value="verifier">Verifying Officer (Tehsildar / Naib Tehsildar) — Verification Sign-Off</option>
-                  <option value="admin">District Administrator — Full System Governance</option>
+                  <option value="field_officer">{t('modals.auth.field_officer_desc')}</option>
+                  <option value="verifier">{t('modals.auth.verifier_desc')}</option>
+                  <option value="admin">{t('modals.auth.admin_desc')}</option>
                 </select>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
                 <button type="button" className="btn btn-outline" onClick={onClose}>
-                  Cancel
+                  {t('auth_modal.btn_cancel')}
                 </button>
                 <button type="submit" className="btn btn-saffron" disabled={isLoading}>
-                  {isLoading ? 'Registering...' : 'Complete Officer Registration'}
+                  {isLoading ? t('auth_modal.btn_registering') : t('modals.auth.title_register')}
                 </button>
               </div>
             </form>
