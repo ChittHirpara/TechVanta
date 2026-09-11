@@ -415,9 +415,23 @@ async def get_document(
         )
     ).scalars().all()
 
+    # Fast duplicate check for Fraud Shield awareness
+    field_map = {f.field_name: f.value for f in fields}
+    owner_name = field_map.get("owner_name")
+    survey_number = field_map.get("survey_number")
+    matches = []
+    if owner_name or survey_number:
+        dups = await find_duplicates(owner_name, survey_number, db, limit=100)
+        matches = [d for d in dups if d.document_id != document_id]
+
+    doc_data = DocumentRead.model_validate(doc).model_dump()
+    doc_data["has_suspected_duplicates"] = len(matches) > 0
+    doc_data["duplicate_count"] = len(matches)
+
     return DocumentDetail(
-        **DocumentRead.model_validate(doc).model_dump(),
+        **doc_data,
         extracted_fields=[ExtractedFieldRead.model_validate(f) for f in fields],
+        top_duplicate_score=matches[0].combined_score if matches else None,
     )
 
 
@@ -497,8 +511,9 @@ async def patch_field(
     old_value = ef.value
 
     # Update the field
-    ef.value      = payload.value.strip()
-    ef.is_flagged = False              # correction clears the flag
+    ef.value            = payload.value.strip()
+    ef.is_flagged       = False              # correction clears the flag
+    ef.confidence_score = 1.0                # human verifier confirmed/certified
 
     # Verification log
     db.add(VerificationLog(

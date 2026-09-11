@@ -80,6 +80,7 @@ class DuplicateMatch:
             "owner_similarity": round(self.owner_similarity, 2),
             "survey_similarity": round(self.survey_similarity, 2),
             "combined_score": round(self.combined_score, 2),
+            "similarity_score": round(self.combined_score, 2),
         }
 
 

@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
 from contextlib import asynccontextmanager
 
-from app.api import api_router
+from app.api import api_router, legacy_router
 from app.core.config import get_settings
 from app.core.limiter import limiter, rate_limit_exceeded_handler
 from app.db.session import get_db
@@ -38,9 +38,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Land Record Digitizer",
-    description="Enterprise API for digitizing, OCR-processing, verifying, and querying land records.",
-    version="0.1.0",
+    title="BhoomiScan AI – Sovereign Land Record Digitization & Verification Engine",
+    description=(
+        "Production-grade sovereign AI platform designed for Smart India Hackathon (SIH) 2026. "
+        "Transforms legacy, faded, handwritten, and multilingual Indian land records into DILRMP 2.0 "
+        "and ULPIN-compliant verified digital registries with automated OCR, Grok LLM extraction, "
+        "rapidfuzz duplicate fraud detection, and human-in-the-loop verification."
+    ),
+    version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     debug=settings.debug,
@@ -73,16 +78,19 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
+# Allows web dashboard (localhost:3000/5173/5174), Expo web (19006/8081), and any LAN IP for mobile
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ── Routers ───────────────────────────────────────────────────────────────────
-app.include_router(api_router)
+app.include_router(api_router)     # Standard /api/v1/* routes
+app.include_router(legacy_router)  # Direct /* root routes for mobile & direct API consumers
 
 # ── Static UI Mounting ────────────────────────────────────────────────────────
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -103,10 +111,30 @@ async def serve_ui():
 
 # ── Health & Diagnostics ──────────────────────────────────────────────────────
 @app.get("/health", tags=["Health"])
-async def health_check() -> dict:
-    """Liveness probe – returns service status."""
+async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
+    """Liveness probe & connectivity sanity check – returns server, DB, and Grok API status."""
+    try:
+        await db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"disconnected: {e}"
+
+    llm_configured = bool(settings.llm_api_key)
+    llm_provider = (
+        "xai-grok" if "x.ai" in (settings.llm_base_url or "")
+        else ("groq" if "groq.com" in (settings.llm_base_url or "")
+        else ("openai" if not settings.llm_base_url else "custom"))
+    )
+
     return {
         "status": "ok",
+        "database": db_status,
+        "llm": {
+            "configured": llm_configured,
+            "provider": llm_provider,
+            "model": settings.llm_model,
+            "base_url": settings.llm_base_url or "https://api.openai.com/v1",
+        },
         "env": settings.app_env,
         "version": app.version,
     }
