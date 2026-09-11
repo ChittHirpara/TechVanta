@@ -40,6 +40,19 @@ from app.main import app
 # ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
+def uploaded_records_file(tmp_path, monkeypatch):
+    """
+    Redirect the uploaded-records JSON to a temp file for every test so the
+    real ``app/data/uploaded_land_records.json`` is never polluted by the
+    test suite.  Restored automatically by monkeypatch after each test.
+    """
+    import app.services.uploaded_records as ur
+    monkeypatch.setattr(
+        ur, "_UPLOADED_FILE", tmp_path / "uploaded_land_records.json"
+    )
+
+
+@pytest.fixture(autouse=True)
 def reset_rate_limits():
     """
     Reset the slowapi in-memory counter storage before every test.

@@ -160,9 +160,12 @@ def test_no_reference_not_silently_valid(records, nashik_reference):
     doc["district"] = "Another District"
     comp, risk = full_risk_assessment(doc, records=records)
     assert comp.matched is False
-    # Must be explicitly "not applicable", never a fabricated clean/valid result.
+    # Must be explicitly "not applicable" with a NON-ZERO risk — never a
+    # fabricated clean/valid result (missing reference ≠ zero mismatches).
     assert risk.applicable is False
-    assert risk.score == 0
+    assert risk.score > 0
+    assert risk.level != "LOW"
+    assert all("reference" in r.lower() for r in risk.reasons)
 
 
 # ── compute_risk edge handling ────────────────────────────────────────────
@@ -170,8 +173,8 @@ def test_no_reference_not_silently_valid(records, nashik_reference):
 def test_compute_risk_no_reference():
     risk = compute_risk(ComparisonResult(reference=None))
     assert risk.applicable is False
-    assert risk.score == 0
-    assert risk.level == "LOW"
+    assert risk.score > 0
+    assert risk.level != "LOW"
 
 
 def test_risk_level_enumeration():

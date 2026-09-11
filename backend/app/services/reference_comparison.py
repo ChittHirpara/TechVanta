@@ -578,6 +578,14 @@ class RiskResult:
         }
 
 
+#: Risk assigned when NO trusted reference record could be matched.  A
+#: comparison that *cannot be performed* is NOT the same as a successful
+#: comparison with zero mismatches — an unverifiable document must never be
+#: treated as "clean".
+NO_REFERENCE_SCORE = 50
+NO_REFERENCE_LEVEL = "HIGH"
+
+
 def compute_risk(comparison: ComparisonResult) -> RiskResult:
     """
     Convert a ComparisonResult into a risk score (0–100), level, and reasons.
@@ -585,8 +593,9 @@ def compute_risk(comparison: ComparisonResult) -> RiskResult:
     Rules:
       - each mismatch adds its field weight to the score (capped at 100);
       - any critical identifier mismatch (survey/khasra/plot area) forces HIGH;
-      - no reference record matched ⇒ LOW with an explanatory reason and
-        ``applicable=False`` (NOT silently "valid", and NOT fabricated risk).
+      - no reference record matched ⇒ elevated HIGH risk with ``applicable=False``
+        and a clear reason — this is NOT the same as a clean zero-mismatch
+        comparison.
     """
     if not comparison.matched:
         reason = (
@@ -594,7 +603,7 @@ def compute_risk(comparison: ComparisonResult) -> RiskResult:
             "Cross-check against the revenue register is required before final verification."
         )
         return RiskResult(
-            score=0, level="LOW", reasons=[reason],
+            score=NO_REFERENCE_SCORE, level=NO_REFERENCE_LEVEL, reasons=[reason],
             mismatch_count=0, applicable=False,
         )
 

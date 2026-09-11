@@ -116,6 +116,7 @@
       "processing": "Processing",
       "needs_review": "Needs Review",
       "verified": "Verified",
+      "unverified": "Unverified",
       "queued": "Queued"
     },
     "actions": {

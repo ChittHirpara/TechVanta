@@ -58,6 +58,7 @@ from app.models.extracted_field import ExtractedField
 from app.services.extraction import extract_fields
 from app.services.ocr import get_ocr_provider
 from app.services.reference_comparison import full_risk_assessment
+from app.services.uploaded_records import save_uploaded_record
 from app.services.validation import build_field_reports, validate_fields
 
 log = logging.getLogger(__name__)
@@ -509,6 +510,49 @@ async def process_document(
                 error=f"Extraction failed: {exc}",
             )
 
+        # ── Step 4b: Save extracted record to uploaded_land_records.json ─────
+        try:
+            async with _step("save_uploaded_record", step_results) as step:
+                await pipeline_broadcaster.broadcast(document_id, {
+                    "event": "step",
+                    "step": "save_uploaded_record",
+                    "percent": 75,
+                    "status": "processing",
+                    "message": "Saving extracted record to uploaded dataset...",
+                })
+                extracted_values = extraction_result.flat_values()
+                saved_record = save_uploaded_record(
+                    document_id=document_id,
+                    source_filename=doc.filename,
+                    extracted_data=extracted_values,
+                )
+                if saved_record is not None:
+                    step.detail = f"record_id={saved_record['id']}"
+                else:
+                    step.detail = "skipped (duplicate document_id)"
+                await _log_audit(
+                    session,
+                    document_id=document_id,
+                    user_id=triggered_by_user_id,
+                    action="uploaded_record_saved",
+                    details={
+                        "record_id": saved_record["id"] if saved_record else None,
+                        "duplicate_skipped": saved_record is None,
+                    },
+                )
+                await session.commit()
+                await pipeline_broadcaster.broadcast(document_id, {
+                    "event": "step",
+                    "step": "save_uploaded_record",
+                    "percent": 78,
+                    "status": "processing",
+                    "message": "Extracted record saved to uploaded dataset" if saved_record else "Duplicate skipped",
+                })
+        except Exception as exc:
+            # Non-fatal: failure to save the uploaded record must NOT
+            # abort the pipeline or affect verification.
+            log.error("[pipeline] save_uploaded_record failed (non-fatal): %s", exc)
+
         # ── Step 5: Validation + confidence scoring ───────────────────────────
         async with _step("validation", step_results) as step:
             extracted_values = extraction_result.flat_values()
@@ -629,10 +673,11 @@ async def process_document(
         # ── Step 7: Determine and set final document status ───────────────────
         async with _step("set_final_status", step_results) as step:
             has_errors = any(v.severity == "error" for v in violations)
-            risk_blocks = risk_applicable and risk_level in ("MEDIUM", "HIGH")
+            risk_blocks = not risk_applicable or risk_level in ("MEDIUM", "HIGH")
 
-            # A reference-data comparison that found discrepancies (MEDIUM/HIGH
-            # risk) must never be auto-verified — it goes to a human verifier.
+            # A document with no trusted reference baseline, or one whose
+            # comparison found discrepancies (MEDIUM/HIGH risk), must never be
+            # auto-verified — it goes to a human verifier.
             if fields_flagged > 0 or has_errors or risk_blocks:
                 final_status = "needs_review"
             else:

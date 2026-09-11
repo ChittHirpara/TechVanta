@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import FieldModal from '../modals/FieldModal';
 import AuditModal from '../modals/AuditModal';
 import DilrmpModal from '../modals/DilrmpModal';
-import DuplicateCompareModal from '../modals/DuplicateCompareModal';
+
 import CadastralMapPanel from './CadastralMapPanel';
 import {
   IconFile,
@@ -26,7 +26,6 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
 
   const [doc, setDoc] = useState(null);
   const [integrity, setIntegrity] = useState(null);
-  const [duplicates, setDuplicates] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -35,7 +34,6 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
   const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isDilrmpModalOpen, setIsDilrmpModalOpen] = useState(false);
-  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
 
   // Action loading state
   const [isVerifying, setIsVerifying] = useState(false);
@@ -49,15 +47,13 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
     setError('');
 
     try {
-      const [docData, integrityData, duplicatesData] = await Promise.all([
+      const [docData, integrityData] = await Promise.all([
         documentsApi.get(docId),
         documentsApi.getIntegrity(docId),
-        documentsApi.getDuplicates(docId).catch(() => null),
       ]);
 
       setDoc(docData);
       setIntegrity(integrityData);
-      setDuplicates(duplicatesData);
     } catch (err) {
       setError(err.message || 'Failed to load document workspace.');
     } finally {
@@ -149,11 +145,6 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
   const jurisdiction =
     [doc.district, doc.tehsil, doc.village].filter(Boolean).join(' / ') || 'Not Specified';
 
-  const suspectedMatch =
-    duplicates?.has_suspected_duplicates && duplicates.matches?.[0]
-      ? duplicates.matches[0]
-      : null;
-
   return (
     <div>
       {/* Workspace Header Toolbar */}
@@ -225,24 +216,6 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
           </button>
         </div>
       </div>
-
-      {/* Fraud Shield Duplicate Alert */}
-      {suspectedMatch && (
-        <div className="gov-alert gov-alert-danger">
-          <IconAlert size={18} />
-          <div>
-            <strong>{t('workspace.labels.fraud_shield_warning')}</strong>
-            {' '}This parcel closely matches existing Document #{suspectedMatch.document_id} (
-            {suspectedMatch.owner_name ? `Owner: ${suspectedMatch.owner_name}, ` : ''}
-            Survey #{suspectedMatch.survey_number || 'N/A'}) with{' '}
-            <strong className="font-mono">
-              {suspectedMatch.combined_score !== undefined && suspectedMatch.combined_score !== null
-                ? `${Math.round(suspectedMatch.combined_score)}% similarity`
-                : 'Similarity score unavailable'}
-            </strong>.
-          </div>
-        </div>
-      )}
 
       {/* Trusted Reference Comparison & Risk Assessment */}
       {doc.risk && (
@@ -484,6 +457,11 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
                                   <span className="status-dot status-dot-flagged" />
                                   {t('dashboard.stats.needs_review')}
                                 </span>
+                              ) : doc.risk && doc.risk.applicable === false ? (
+                                <span className="badge badge-flagged">
+                                  <span className="status-dot status-dot-flagged" />
+                                  {t('registry.status.unverified')}
+                                </span>
                               ) : (
                                 <span className="badge badge-verified">
                                   <span className="status-dot status-dot-verified" />
@@ -578,14 +556,6 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
         docId={docId}
         onClose={() => setIsDilrmpModalOpen(false)}
         showToast={showToast}
-      />
-
-      <DuplicateCompareModal
-        isOpen={isCompareModalOpen}
-        onClose={() => setIsCompareModalOpen(false)}
-        currentDoc={doc}
-        currentFields={doc.extracted_fields || []}
-        duplicateMatch={suspectedMatch}
       />
     </div>
   );
