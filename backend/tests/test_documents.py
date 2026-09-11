@@ -597,3 +597,78 @@ async def test_dashboard_stats_scoped_to_field_officer(
     stats_admin = (await client.get("/api/v1/dashboard/stats", headers={"Authorization": f"Bearer {admin_token}"})).json()
     assert stats_admin["total_documents"] >= 1
 
+
+@pytest.mark.asyncio
+async def test_upload_idempotency(client: AsyncClient):
+    """Retrying an upload with the same client_capture_id should return the existing document without creating a duplicate."""
+    await client.post("/api/v1/auth/register", json={
+        "username": "idempotent_officer",
+        "password": "Password123!",
+        "role": "field_officer",
+    })
+    resp = await client.post("/api/v1/auth/login", json={
+        "username": "idempotent_officer",
+        "password": "Password123!",
+    })
+    token = resp.json()["access_token"]
+    capture_id = "local_test_capture_998877"
+
+    with patch("app.api.documents.process_document"):
+        # First upload
+        res1 = await client.post(
+            "/api/v1/documents/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"file": ("deed_idem.pdf", io.BytesIO(b"%PDF-1.4 sample content"), "application/pdf")},
+            data={"district": "Patna", "client_capture_id": capture_id},
+        )
+        assert res1.status_code == 202
+        doc1 = res1.json()
+
+        # Retry upload with identical capture_id
+        res2 = await client.post(
+            "/api/v1/documents/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"file": ("deed_idem.pdf", io.BytesIO(b"%PDF-1.4 sample content"), "application/pdf")},
+            data={"district": "Patna", "client_capture_id": capture_id},
+        )
+        assert res2.status_code == 202
+        doc2 = res2.json()
+
+        # Must return the same document ID
+        assert doc1["id"] == doc2["id"]
+
+
+@pytest.mark.asyncio
+async def test_officer_notifications(client: AsyncClient):
+    """Field officer should be able to fetch recent document status notifications."""
+    await client.post("/api/v1/auth/register", json={
+        "username": "notif_officer",
+        "password": "Password123!",
+        "role": "field_officer",
+    })
+    resp = await client.post("/api/v1/auth/login", json={
+        "username": "notif_officer",
+        "password": "Password123!",
+    })
+    token = resp.json()["access_token"]
+
+    with patch("app.api.documents.process_document"):
+        await client.post(
+            "/api/v1/documents/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"file": ("deed_notif.pdf", io.BytesIO(b"%PDF-1.4 content"), "application/pdf")},
+            data={"district": "Patna"},
+        )
+
+    notifs_res = await client.get(
+        "/api/v1/documents/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert notifs_res.status_code == 200
+    notifs = notifs_res.json()
+    assert isinstance(notifs, list)
+    assert len(notifs) >= 1
+    assert "document_id" in notifs[0]
+    assert "title" in notifs[0]
+
+

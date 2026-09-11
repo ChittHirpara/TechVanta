@@ -33,6 +33,16 @@ class Document(Base):
     district: Mapped[str | None] = mapped_column(String(150), nullable=True)
     tehsil: Mapped[str | None] = mapped_column(String(150), nullable=True)
     village: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    assigned_verifier_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    claimed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    is_escalated: Mapped[bool] = mapped_column(
+        default=False, nullable=False, server_default="0"
+    )
+    escalation_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -45,6 +55,7 @@ class Document(Base):
 
     # Relationships (lazy="select" is the async-safe default with explicit loads)
     uploader = relationship("User", foreign_keys=[uploaded_by], lazy="select")
+    assigned_verifier = relationship("User", foreign_keys=[assigned_verifier_id], lazy="select")
     extracted_fields = relationship(
         "ExtractedField", back_populates="document", cascade="all, delete-orphan", lazy="select"
     )

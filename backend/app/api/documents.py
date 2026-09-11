@@ -179,6 +179,7 @@ async def upload_document(
     district: str | None = Form(None),
     tehsil:   str | None = Form(None),
     village:  str | None = Form(None),
+    client_capture_id: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentRead:
@@ -187,9 +188,28 @@ async def upload_document(
     enqueues the full OCR→extraction→validation pipeline as a BackgroundTask,
     and returns the ``document_id`` immediately.
 
+    If client_capture_id is provided and was already uploaded, returns existing document (idempotency).
+
     Poll ``GET /documents/{id}`` to watch:
     ``processing → needs_review | verified``
     """
+    if client_capture_id:
+        recent_audits = (
+            await db.execute(
+                select(AuditTrail).where(
+                    AuditTrail.user_id == current_user.id,
+                    AuditTrail.action == "document_uploaded",
+                ).order_by(AuditTrail.timestamp.desc()).limit(50)
+            )
+        ).scalars().all()
+        for audit in recent_audits:
+            if audit.details and audit.details.get("client_capture_id") == client_capture_id:
+                existing_doc = (
+                    await db.execute(select(Document).where(Document.id == audit.document_id))
+                ).scalar_one_or_none()
+                if existing_doc:
+                    return DocumentRead.model_validate(existing_doc)
+
     try:
         storage_path = _save_upload(file)
     except HTTPException:
@@ -209,12 +229,16 @@ async def upload_document(
     db.add(doc)
     await db.flush()
 
+    audit_details = {"filename": doc.filename}
+    if client_capture_id:
+        audit_details["client_capture_id"] = client_capture_id
+
     await write_audit(
         db,
         "document_uploaded",
         document_id=doc.id,
         user_id=current_user.id,
-        details={"filename": doc.filename},
+        details=audit_details,
     )
     await db.commit()
     await db.refresh(doc)
@@ -228,6 +252,64 @@ async def upload_document(
     )
 
     return DocumentRead.model_validate(doc)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /documents/notifications (Field Officer Status Notifications)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get(
+    "/notifications",
+    summary="Get recent status notifications for field officer's uploaded documents",
+)
+async def get_document_notifications(
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """
+    Returns a list of status transition events (verified, needs_review, processing)
+    for documents uploaded by the current field officer.
+    """
+    stmt = select(Document).order_by(Document.updated_at.desc()).limit(limit)
+    if current_user.role == UserRole.field_officer:
+        stmt = stmt.where(Document.uploaded_by == current_user.id)
+
+    docs = (await db.execute(stmt)).scalars().all()
+    notifications = []
+    for doc in docs:
+        if doc.status == DocumentStatus.verified:
+            notifications.append({
+                "id": f"notif_verified_{doc.id}",
+                "document_id": doc.id,
+                "title": f"Document #{doc.id} Verified",
+                "message": f"Land record '{doc.filename}' has been successfully verified & sealed.",
+                "type": "success",
+                "status": doc.status.value,
+                "timestamp": doc.updated_at.isoformat() if doc.updated_at else datetime.now(timezone.utc).isoformat(),
+            })
+        elif doc.status == DocumentStatus.needs_review:
+            notifications.append({
+                "id": f"notif_review_{doc.id}",
+                "document_id": doc.id,
+                "title": f"Document #{doc.id} Requires Review",
+                "message": f"Land record '{doc.filename}' has flagged attributes under verifier review.",
+                "type": "warning",
+                "status": doc.status.value,
+                "timestamp": doc.updated_at.isoformat() if doc.updated_at else datetime.now(timezone.utc).isoformat(),
+            })
+        elif doc.status == DocumentStatus.processing:
+            notifications.append({
+                "id": f"notif_proc_{doc.id}",
+                "document_id": doc.id,
+                "title": f"Document #{doc.id} Processing",
+                "message": f"OCR & extraction pipeline running for '{doc.filename}'.",
+                "type": "info",
+                "status": doc.status.value,
+                "timestamp": doc.created_at.isoformat() if doc.created_at else datetime.now(timezone.utc).isoformat(),
+            })
+    return notifications
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────

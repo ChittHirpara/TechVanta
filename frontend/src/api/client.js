@@ -56,6 +56,11 @@ export async function apiClient(endpoint, options = {}) {
   const res = await fetch(url, { ...options, headers });
 
   if (res.status === 401) {
+    const isLoginRequest = url.includes('/auth/login');
+    if (isLoginRequest) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || 'Invalid username or password.');
+    }
     // Session expired
     setStoredToken(null);
     setStoredUser(null);
