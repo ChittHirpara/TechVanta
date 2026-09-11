@@ -26,6 +26,11 @@ export default function Dashboard({ onNavigateToUpload, onNavigateToRegistry }) 
 
   useEffect(() => {
     fetchStats();
+    // Silent auto-refresh for newly uploaded mobile documents
+    const pollInterval = setInterval(() => {
+      dashboardApi.getStats().then((data) => setStats(data)).catch(() => {});
+    }, 5000);
+    return () => clearInterval(pollInterval);
   }, [fetchStats]);
 
   return (

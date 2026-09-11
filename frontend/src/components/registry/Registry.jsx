@@ -52,6 +52,29 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
     return () => clearTimeout(timer);
   }, [fetchDocuments]);
 
+  // Silent auto-refresh for newly uploaded documents without triggering full loader
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      documentsApi
+        .list({
+          page,
+          pageSize,
+          status: statusFilter || undefined,
+          district: districtFilter || undefined,
+          search: search.trim() || undefined,
+        })
+        .then((res) => {
+          if (res && res.items) {
+            setDocuments(res.items);
+            setTotal(res.total || 0);
+            onDocCountUpdate?.(res.total || 0);
+          }
+        })
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(pollInterval);
+  }, [page, pageSize, statusFilter, districtFilter, search, onDocCountUpdate]);
+
   const handleResetFilters = () => {
     setSearch('');
     setStatusFilter('');
