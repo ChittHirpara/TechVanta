@@ -403,6 +403,180 @@ class EasyOCRProvider(OCRProvider):
             )
 
 
+class LMStudioProvider(OCRProvider):
+    """
+    Vision-model OCR via LM Studio (or any OpenAI-compatible vision endpoint).
+
+    Sends images as base64 to a vision model's chat completions API and
+    extracts all text from the response.  PDFs are converted to page images first.
+
+    Requires:
+        - LM Studio running with a vision model loaded
+        - ``LM_STUDIO_BASE_URL`` set in .env (e.g. http://127.0.0.1:1234/v1)
+        - ``OCR_MODEL`` set in .env (e.g. allenai/olmocr-2-7b)
+    """
+
+    name = "lmstudio"
+
+    def __init__(
+        self,
+        base_url: str = "http://127.0.0.1:1234/v1",
+        model: str = "allenai/olmocr-2-7b",
+        api_key: str = "lm-studio",
+        pdf_dpi: int = 300,
+    ) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.api_key = api_key
+        self.pdf_dpi = pdf_dpi
+        # Vision models can't ingest arbitrarily large renders; long edges
+        # are capped here before the image is base64-encoded and sent.
+        self.max_image_dim = 1024
+        self._client = None
+
+    def _get_client(self):
+        """Lazily create the OpenAI-compatible client."""
+        if self._client is None:
+            from openai import OpenAI
+            self._client = OpenAI(
+                base_url=self.base_url,
+                api_key=self.api_key,
+            )
+        return self._client
+
+    def _image_to_base64(self, image) -> str:
+        """
+        Convert a PIL Image to a base64-encoded JPEG string.
+
+        Vision models / LM Studio reject images that are too large
+        (``failed to process mtmd chunk``) — downscale long edges to a
+        safe maximum so every page render can be processed.
+        """
+        import base64
+        import io
+        img = image.convert("RGB")
+        if max(img.size) > self.max_image_dim:
+            img = img.copy()
+            img.thumbnail((self.max_image_dim, self.max_image_dim))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=90)
+        return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+    def _ocr_single_image(self, image) -> tuple[str, list[WordConfidence]]:
+        """Send a single image to the vision model and extract text."""
+        import base64
+        import io
+
+        client = self._get_client()
+        b64_image = self._image_to_base64(image)
+
+        response = client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an OCR engine. Extract ALL text from this land record document image. "
+                        "Return the raw text exactly as it appears. Do not summarize, translate, or add commentary. "
+                        "Preserve line breaks and formatting."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{b64_image}",
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": "Extract all text from this land record document. Return only the raw text, nothing else.",
+                        },
+                    ],
+                },
+            ],
+            temperature=0.0,
+            max_tokens=4096,
+        )
+
+        raw_text = (response.choices[0].message.content or "").strip()
+
+        # Build word-level confidences (vision models don't give per-word conf,
+        # so we assign uniform confidence based on response length)
+        words: list[WordConfidence] = []
+        if raw_text:
+            for word in raw_text.split():
+                word = word.strip()
+                if word:
+                    # Longer words get slightly higher confidence (heuristic)
+                    conf = min(0.95, 0.70 + len(word) * 0.005)
+                    words.append(WordConfidence(word=word, confidence=conf))
+
+        return raw_text, words
+
+    def _extract_from_image(self, path: Path) -> OCRResult:
+        from PIL import Image
+
+        with Image.open(path) as img:
+            img = img.convert("RGB")
+            text, words = self._ocr_single_image(img)
+
+        avg_conf = (
+            sum(w.confidence for w in words) / len(words) if words else 0.0
+        )
+        return OCRResult(
+            raw_text=text,
+            avg_confidence=round(avg_conf, 4),
+            word_confidences=words,
+            page_count=1,
+            provider=self.name,
+        )
+
+    def _extract_from_pdf(self, path: Path) -> OCRResult:
+        log.info(
+            "[lmstudio] Converting PDF '%s' to images at %d DPI …",
+            path.name, self.pdf_dpi,
+        )
+        pages = _convert_pdf_to_images(path, dpi=self.pdf_dpi)
+        log.info("[lmstudio]  → %d page(s) detected", len(pages))
+
+        all_text_parts: list[str] = []
+        all_words: list[WordConfidence] = []
+
+        for i, page_img in enumerate(pages, start=1):
+            log.debug("[lmstudio] OCR-ing page %d/%d with %s", i, len(pages), self.model)
+            page_text, page_words = self._ocr_single_image(page_img)
+            all_text_parts.append(f"[Page {i}]\n{page_text}")
+            all_words.extend(page_words)
+
+        raw_text = "\n\n".join(all_text_parts)
+        avg_conf = (
+            sum(w.confidence for w in all_words) / len(all_words)
+            if all_words else 0.0
+        )
+        return OCRResult(
+            raw_text=raw_text,
+            avg_confidence=round(avg_conf, 4),
+            word_confidences=all_words,
+            page_count=len(pages),
+            provider=self.name,
+        )
+
+    def _extract_sync(self, file_path: Path) -> OCRResult:
+        suffix = file_path.suffix.lower()
+        if suffix in _PDF_SUFFIXES:
+            return self._extract_from_pdf(file_path)
+        elif suffix in _IMAGE_SUFFIXES:
+            return self._extract_from_image(file_path)
+        else:
+            raise ValueError(
+                f"Unsupported file type '{suffix}'. "
+                f"Supported: {_IMAGE_SUFFIXES | _PDF_SUFFIXES}"
+            )
+
+
 class TrOCRProvider(OCRProvider):
     """Placeholder – implement when TrOCR (HuggingFace) is added."""
     name = "trocr"
@@ -421,10 +595,11 @@ class TrOCRProvider(OCRProvider):
 _REGISTRY: dict[str, type[OCRProvider]] = {
     "tesseract": TesseractProvider,
     "easyocr": EasyOCRProvider,
+    "lmstudio": LMStudioProvider,
     "trocr": TrOCRProvider,
 }
 
-ProviderName = Literal["tesseract", "easyocr", "trocr"]
+ProviderName = Literal["tesseract", "easyocr", "lmstudio", "trocr"]
 
 
 def get_ocr_provider() -> OCRProvider:
@@ -468,5 +643,13 @@ def get_ocr_provider() -> OCRProvider:
         lang_parts = [p.strip() for p in cfg.tesseract_lang.split("+") if p.strip()]
         easyocr_langs = [_TESS_TO_EASYOCR.get(p, p) for p in lang_parts]
         return EasyOCRProvider(lang=easyocr_langs, pdf_dpi=cfg.pdf_dpi)
+
+    if provider_key == "lmstudio":
+        return LMStudioProvider(
+            base_url=cfg.lm_studio_base_url or "http://127.0.0.1:1234/v1",
+            model=cfg.ocr_model,
+            api_key=cfg.llm_api_key or "lm-studio",
+            pdf_dpi=cfg.pdf_dpi,
+        )
 
     return cls()

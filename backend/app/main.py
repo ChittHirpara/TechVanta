@@ -119,11 +119,13 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
     except Exception as e:
         db_status = f"disconnected: {e}"
 
-    llm_configured = bool(settings.llm_api_key)
+    llm_configured = bool(settings.llm_api_key) or bool(settings.lm_studio_base_url)
+    base_url_lower = (settings.lm_studio_base_url or settings.llm_base_url or "").lower()
     llm_provider = (
-        "xai-grok" if "x.ai" in (settings.llm_base_url or "")
-        else ("groq" if "groq.com" in (settings.llm_base_url or "")
-        else ("openai" if not settings.llm_base_url else "custom"))
+        "lm-studio" if "1234" in base_url_lower or "lm-studio" in base_url_lower
+        else ("xai-grok" if "x.ai" in base_url_lower
+        else ("groq" if "groq.com" in base_url_lower
+        else ("openai" if not settings.llm_base_url else "custom")))
     )
 
     return {
@@ -156,6 +158,9 @@ async def system_diagnostics(db: AsyncSession = Depends(get_db)) -> dict:
     ocr_info = {
         "provider": settings.ocr_provider,
         "languages": settings.tesseract_lang,
+        "lm_studio_url": settings.lm_studio_base_url or None,
+        "ocr_model": settings.ocr_model if settings.ocr_provider == "lmstudio" else None,
+        "extraction_model": settings.extraction_model,
         "tesseract_installed": tess_path is not None,
         "tesseract_binary": tess_path or "not in system PATH (using mock/cloud)",
     }

@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
 
-    # ── LLM ──────────────────────────────────────────────────────────────────
+    # ── LLM (Extraction) ─────────────────────────────────────────────────────
     llm_api_key: str = ""
     llm_model: str = "gpt-4o"
     # Optional override for OpenAI-compatible endpoints (Ollama, Azure, etc.)
@@ -69,8 +69,17 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 2048
     llm_max_retries: int = 2       # how many JSON-parse-retry attempts
 
+    # ── LM Studio (local vision + extraction) ────────────────────────────────
+    # Base URL of the LM Studio server (OpenAI-compatible /v1 endpoint)
+    # e.g. http://127.0.0.1:1234/v1
+    lm_studio_base_url: str = ""
+    # Vision model used for OCR (image → text)
+    ocr_model: str = "allenai/olmocr-2-7b"
+    # Text model used for structured field extraction from OCR text
+    extraction_model: str = "qwen/qwen3-vl-8b"
+
     # ── OCR ──────────────────────────────────────────────────────────────────
-    # Supported values: "tesseract" | "easyocr" | "trocr"
+    # Supported values: "tesseract" | "easyocr" | "trocr" | "lmstudio"
     ocr_provider: str = "tesseract"
     # Tesseract language(s), e.g. "eng" or "eng+hin" for multilingual docs
     tesseract_lang: str = "eng"

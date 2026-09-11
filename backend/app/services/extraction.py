@@ -299,8 +299,10 @@ def _get_client():
 
     cfg = get_settings()
     kwargs: dict[str, Any] = {"api_key": cfg.llm_api_key or "sk-no-key"}
-    if cfg.llm_base_url:
-        kwargs["base_url"] = cfg.llm_base_url
+    # Prefer LM Studio base URL if configured, fall back to generic llm_base_url
+    base_url = cfg.lm_studio_base_url or cfg.llm_base_url
+    if base_url:
+        kwargs["base_url"] = base_url
     return AsyncOpenAI(**kwargs)
 
 
@@ -329,7 +331,8 @@ async def extract_fields(raw_text: str) -> ExtractionResult:
 
     cfg = get_settings()
     client = _get_client()
-    model = cfg.llm_model
+    # Prefer the dedicated extraction model; fall back to generic llm_model
+    model = cfg.extraction_model or cfg.llm_model
     max_retries = max(1, cfg.llm_max_retries)
 
     user_message = _USER_TEMPLATE.format(raw_text=raw_text.strip())
