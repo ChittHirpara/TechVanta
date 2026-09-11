@@ -42,17 +42,16 @@ async def test_demo_showcase_duplicate_detection(client: AsyncClient, admin_toke
     doc_1 = next(d for d in docs if d["filename"] == "jaipur_khasra_451.pdf")
     doc_fraud = next(d for d in docs if d["filename"] == "jaipur_fraud_khasra_451.pdf")
 
-    # Fetch detail of fraudulent duplicate
+    # Fetch detail of fraudulent duplicate (verification payload is prior-upload free:
+    # duplicate tracking is exposed only through the explicit /duplicates endpoint)
     detail_res = await client.get(f"/api/v1/documents/{doc_fraud['id']}", headers=headers)
     assert detail_res.status_code == 200
     fdetail = detail_res.json()
+    assert fdetail["has_suspected_duplicates"] is False
+    assert fdetail["duplicate_count"] == 0
+    assert fdetail["top_duplicate_score"] is None
 
-    assert fdetail["has_suspected_duplicates"] is True
-    assert fdetail["duplicate_count"] >= 1
-    assert fdetail["top_duplicate_score"] is not None
-    assert fdetail["top_duplicate_score"] >= 90.0
-
-    # Test explicit duplicates endpoint
+    # Test explicit duplicates endpoint (dedicated Fraud Shield feature)
     dup_res = await client.get(f"/api/v1/documents/{doc_fraud['id']}/duplicates", headers=headers)
     assert dup_res.status_code == 200
     dup_data = dup_res.json()

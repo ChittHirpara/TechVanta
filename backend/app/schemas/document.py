@@ -90,9 +90,13 @@ class DocumentRead(_DocumentBase):
 
 
 class DocumentDetail(DocumentRead):
-    """Full document detail – includes extracted fields."""
+    """Full document detail – includes extracted fields + reference comparison."""
     extracted_fields:    list[ExtractedFieldRead] = []
     top_duplicate_score: float | None = None
+    #: Field-by-field comparison against the trusted file-based reference record.
+    comparison: dict | None = None
+    #: Risk assessment derived from the comparison (score 0–100, level, reasons).
+    risk: dict | None = None
 
 
 # ── Pagination wrapper ────────────────────────────────────────────────────────

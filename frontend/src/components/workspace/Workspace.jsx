@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import FieldModal from '../modals/FieldModal';
 import AuditModal from '../modals/AuditModal';
 import DilrmpModal from '../modals/DilrmpModal';
-import DuplicateCompareModal from '../modals/DuplicateCompareModal';
+
 import CadastralMapPanel from './CadastralMapPanel';
 import {
   IconFile,
@@ -26,7 +26,6 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
 
   const [doc, setDoc] = useState(null);
   const [integrity, setIntegrity] = useState(null);
-  const [duplicates, setDuplicates] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -35,7 +34,6 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
   const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isDilrmpModalOpen, setIsDilrmpModalOpen] = useState(false);
-  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
 
   // Action loading state
   const [isVerifying, setIsVerifying] = useState(false);
@@ -49,15 +47,13 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
     setError('');
 
     try {
-      const [docData, integrityData, duplicatesData] = await Promise.all([
+      const [docData, integrityData] = await Promise.all([
         documentsApi.get(docId),
         documentsApi.getIntegrity(docId),
-        documentsApi.getDuplicates(docId).catch(() => null),
       ]);
 
       setDoc(docData);
       setIntegrity(integrityData);
-      setDuplicates(duplicatesData);
     } catch (err) {
       setError(err.message || 'Failed to load document workspace.');
     } finally {
@@ -149,11 +145,6 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
   const jurisdiction =
     [doc.district, doc.tehsil, doc.village].filter(Boolean).join(' / ') || 'Not Specified';
 
-  const suspectedMatch =
-    duplicates?.has_suspected_duplicates && duplicates.matches?.[0]
-      ? duplicates.matches[0]
-      : null;
-
   return (
     <div>
       {/* Workspace Header Toolbar */}
@@ -226,20 +217,114 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
         </div>
       </div>
 
-      {/* Fraud Shield Duplicate Alert */}
-      {suspectedMatch && (
-        <div className="gov-alert gov-alert-danger">
-          <IconAlert size={18} />
-          <div>
-            <strong>{t('workspace.labels.fraud_shield_warning')}</strong>
-            {' '}This parcel closely matches existing Document #{suspectedMatch.document_id} (
-            {suspectedMatch.owner_name ? `Owner: ${suspectedMatch.owner_name}, ` : ''}
-            Survey #{suspectedMatch.survey_number || 'N/A'}) with{' '}
-            <strong className="font-mono">
-              {suspectedMatch.combined_score !== undefined && suspectedMatch.combined_score !== null
-                ? `${Math.round(suspectedMatch.combined_score)}% similarity`
-                : 'Similarity score unavailable'}
-            </strong>.
+      {/* Trusted Reference Comparison & Risk Assessment */}
+      {doc.risk && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header">
+            <div>
+              <h3 className="card-title">
+                <IconShield size={14} />
+                {t('workspace.labels.risk_title')}
+              </h3>
+              <div className="card-subtitle">
+                {t('workspace.labels.risk_subtitle')}
+              </div>
+            </div>
+            <span
+              className={`badge ${
+                doc.risk.level === 'HIGH'
+                  ? 'badge-flagged'
+                  : doc.risk.level === 'MEDIUM'
+                  ? 'badge-needs_review'
+                  : 'badge-verified'
+              }`}
+            >
+              <span className="status-dot" />
+              {doc.risk.level} · {t('workspace.labels.risk_score', { score: doc.risk.score })}
+            </span>
+          </div>
+
+          <div className="card-body" style={{ padding: '12px 16px' }}>
+            {doc.risk.applicable === false ? (
+              <div className="gov-alert gov-alert-warning">
+                <IconAlert size={16} />
+                <div style={{ fontSize: 13 }}>
+                  {t('workspace.labels.risk_no_reference')}
+                </div>
+              </div>
+            ) : doc.risk.mismatch_count === 0 ? (
+              <div className="gov-alert gov-alert-success">
+                <IconCheck size={16} />
+                <div style={{ fontSize: 13 }}>
+                  {t('workspace.labels.risk_clean')}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="gov-alert gov-alert-danger" style={{ marginBottom: 10 }}>
+                  <IconAlert size={16} />
+                  <div>
+                    <strong>
+                      {t('workspace.labels.risk_differs', { count: doc.risk.mismatch_count })}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="table-responsive">
+                  <table className="gov-table">
+                    <thead>
+                      <tr>
+                        <th>{t('workspace.labels.field_identifier')}</th>
+                        <th>{t('workspace.labels.risk_reference')}</th>
+                        <th>{t('workspace.labels.risk_submitted')}</th>
+                        <th>{t('workspace.risk_verdict')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(doc.comparison?.mismatches || []).map((m) => (
+                        <tr key={m.field}>
+                          <td>
+                            <code className="font-mono text-xs text-gov-navy-900 font-semibold">
+                              {m.field}
+                            </code>
+                          </td>
+                          <td>
+                            <strong style={{ fontSize: 13 }}>
+                              {m.reference_value || '—'}
+                            </strong>
+                          </td>
+                          <td>
+                            <strong style={{ fontSize: 13 }}>
+                              {m.submitted_value || '—'}
+                            </strong>
+                          </td>
+                          <td>
+                            <span
+                              className={`badge ${
+                                m.severity === 'error' ? 'badge-flagged' : 'badge-needs_review'
+                              }`}
+                            >
+                              {m.severity === 'error'
+                                ? t('workspace.risk_mismatch')
+                                : t('workspace.risk_review_verdict')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ marginTop: 10, fontSize: 12, color: 'var(--slate-600)' }}>
+                  {doc.risk.reasons.map((r, i) => (
+                    <div key={i} style={{ marginBottom: 2, display: 'flex', gap: 6 }}>
+                      <span>•</span>
+                      <span>{r}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -372,6 +457,11 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
                                   <span className="status-dot status-dot-flagged" />
                                   {t('dashboard.stats.needs_review')}
                                 </span>
+                              ) : doc.risk && doc.risk.applicable === false ? (
+                                <span className="badge badge-flagged">
+                                  <span className="status-dot status-dot-flagged" />
+                                  {t('registry.status.unverified')}
+                                </span>
                               ) : (
                                 <span className="badge badge-verified">
                                   <span className="status-dot status-dot-verified" />
@@ -466,14 +556,6 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
         docId={docId}
         onClose={() => setIsDilrmpModalOpen(false)}
         showToast={showToast}
-      />
-
-      <DuplicateCompareModal
-        isOpen={isCompareModalOpen}
-        onClose={() => setIsCompareModalOpen(false)}
-        currentDoc={doc}
-        currentFields={doc.extracted_fields || []}
-        duplicateMatch={suspectedMatch}
       />
     </div>
   );

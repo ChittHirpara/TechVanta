@@ -28,9 +28,10 @@ log = logging.getLogger(__name__)
 
 Confidence = Literal["high", "medium", "low"]
 
-#: All 12 domain fields in declaration order
+#: All domain fields in declaration order
 FIELD_NAMES: tuple[str, ...] = (
     "owner_name",
+    "co_owner",
     "survey_number",
     "khasra_number",
     "khata_number",
@@ -93,11 +94,11 @@ Your only job is to parse the provided raw text and return a single, valid JSON 
 STRICT RULES — follow every rule or the output is invalid:
 1. Respond with ONLY the JSON object. No markdown fences, no prose, no explanation.
 2. The JSON must contain exactly two top-level keys: "fields" and "extraction_confidence".
-3. "fields" must contain exactly these 12 keys (use null if a field is not present):
-   owner_name, survey_number, khasra_number, khata_number, plot_area,
+3. "fields" must contain exactly these 13 keys (use null if a field is not present):
+   owner_name, co_owner, survey_number, khasra_number, khata_number, plot_area,
    village, tehsil, district, land_classification, ownership_details,
    mutation_record, registration_info
-4. "extraction_confidence" must contain the same 12 keys, each mapped to one of:
+4. "extraction_confidence" must contain the same 13 keys, each mapped to one of:
    "high"   → value appears verbatim / explicitly in the text
    "medium" → value was inferred or normalised from context
    "low"    → value is uncertain, partially matched, or guessed
@@ -238,6 +239,7 @@ def _extract_fields_heuristic(
         "tehsil": r"(?:Tehsil|तहसील)\s*[:\-]?\s*([A-Za-z]+)",
         "village": r"(?:Village|Gram|Mauza|गाँव|ग्राम|मौजा)\s*[:\-]?\s*([A-Za-z\s]+?)(?=\s*(?:Owner|Kashtkar|Khatedar|Tehsil|District|Zila|Halqa|Survey|Khas|Khata|Plot|Land|$|\n))",
         "owner_name": r"(?:Owner(?:\s*Name)?|Kashtkar(?:\s*Name)?|Pattedar|Khatedar|नाम|खातेदार|काश्तकार)\s*[:\-]?\s*([A-Za-z\s\.\/\(\)\&]+?)(?=\s*(?:Survey|Khas|Khata|Plot|Rakba|Land|Village|Gram|Tehsil|District|Zila|Mutation|Namantaran|Pegistration|Registration|Registry|$|\n))",
+        "co_owner": r"(?:Co[- ]?Owner[s]?|Joint Owner[s]?|सह मालिक)\s*[:\-]?\s*([A-Za-z\s\.\/\(\)\&]+?)(?=\s*(?:Survey|Khas|Khata|Plot|Rakba|Land|Mutation|Namantaran|Pegistration|Registration|Registry|$|\n))",
         "survey_number": r"(?:Survey\s*(?:Number|No\.?)?|सर्वे)\s*[:\-]?\s*([A-Za-z0-9\-\/]+)",
         "khasra_number": r"(?:Khas[rma]+\s*(?:Number|No\.?)?|खसरा)\s*[:\-]?\s*([0-9A-Za-z\/\s]+?)(?=\s*(?:Khata|Plot|Rakba|Land|Survey|Owner|Kashtkar|$|\(|\n))",
         "khata_number": r"(?:Khata\s*(?:Number|No\.?)?|खाता)\s*[:\-]?\s*([0-9A-Za-z\[\]]+)",

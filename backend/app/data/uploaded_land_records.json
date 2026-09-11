@@ -1,0 +1,131 @@
+{
+  "description": "Extracted land records from uploaded PDFs. Separate from trusted reference data.",
+  "records": [
+    {
+      "id": "UPLOAD-6d79b065f714",
+      "documentId": 16,
+      "uploadedAt": "2026-09-11T14:14:59.239928+00:00",
+      "sourceFileName": "BhoomiScan_Completely_Unmatched_Test (2).pdf",
+      "extractedData": {
+        "owner_name": "Rohan Sharma",
+        "co_owner": "None",
+        "survey_number": "319-C",
+        "khasra_number": "319/7",
+        "khata_number": "845",
+        "plot_area": "7.80 Acres",
+        "village": "Badi",
+        "tehsil": "Ginwa",
+        "district": "Udaipur",
+        "land_classification": "Residential - Converted Land",
+        "ownership_details": "Sole ownership - clear title",
+        "mutation_record": "Entry 118, 03-Aug-2024",
+        "registration_info": "Deed 9927/2024"
+      }
+    },
+    {
+      "id": "UPLOAD-27161570523a",
+      "documentId": 17,
+      "uploadedAt": "2026-09-11T14:33:35.068647+00:00",
+      "sourceFileName": "BhoomiScan_Completely_Unmatched_Test (2).pdf",
+      "extractedData": {
+        "owner_name": "Rohan Sharma",
+        "co_owner": "None",
+        "survey_number": "319-C",
+        "khasra_number": "319/7",
+        "khata_number": "845",
+        "plot_area": "7.80 Acres",
+        "village": "Badi",
+        "tehsil": "Ginwa",
+        "district": "Udaipur",
+        "land_classification": "Residential - Converted Land",
+        "ownership_details": "Sole ownership - clear title",
+        "mutation_record": "Entry 118, 03-Aug-2024",
+        "registration_info": "Deed 9927/2024"
+      }
+    },
+    {
+      "id": "UPLOAD-90917787e542",
+      "documentId": 18,
+      "uploadedAt": "2026-09-11T14:37:35.720257+00:00",
+      "sourceFileName": "BhoomiScan_Unknown_Record_Test.pdf",
+      "extractedData": {
+        "owner_name": "Kavita Rathore",
+        "co_owner": "Suresh Rathore",
+        "survey_number": "512-D",
+        "khasra_number": "512/11",
+        "khata_number": "9284",
+        "plot_area": "11.65 Acres",
+        "village": "Bap",
+        "tehsil": "Osian",
+        "district": "Jodhpur",
+        "land_classification": "Agricultural - Horticulture",
+        "ownership_details": "Joint ownership - 3 co-owners",
+        "mutation_record": "Entry 267, 18-Feb-2025",
+        "registration_info": "Deed 18432/2025"
+      }
+    },
+    {
+      "id": "UPLOAD-df0b25119432",
+      "documentId": 19,
+      "uploadedAt": "2026-09-11T15:20:27.420509+00:00",
+      "sourceFileName": "BhoomiScan_Test_1_Matching_Dummy.pdf",
+      "extractedData": {
+        "owner_name": "Meera Deshmukh",
+        "co_owner": "Arjun Deshmukh",
+        "survey_number": "126-A",
+        "khasra_number": "126/3",
+        "khata_number": "307",
+        "plot_area": "3.25 Acres",
+        "village": "Karanjwan",
+        "tehsil": "Dindori",
+        "district": "Nashik",
+        "land_classification": "Agricultural - Dry Crop",
+        "ownership_details": "Joint ownership - 2 co-owners",
+        "mutation_record": "Entry 41, 22-Nov-2021",
+        "registration_info": "Deed 7814/2021"
+      }
+    },
+    {
+      "id": "UPLOAD-f37045df8a03",
+      "documentId": 20,
+      "uploadedAt": "2026-09-11T15:23:20.830977+00:00",
+      "sourceFileName": "BhoomiScan_Test_2_Unknown_Record.pdf",
+      "extractedData": {
+        "owner_name": "Kavita Rathore",
+        "co_owner": "Suresh Rathore",
+        "survey_number": "512-D",
+        "khasra_number": "512/11",
+        "khata_number": "9284",
+        "plot_area": "11.65 Acres",
+        "village": "Bap",
+        "tehsil": "Osian",
+        "district": "Jodhpur",
+        "land_classification": "Agricultural - Horticulture",
+        "ownership_details": "Joint ownership - 3 co-owners",
+        "mutation_record": "Entry 267, 18-Feb-2025",
+        "registration_info": "Deed 18432/2025"
+      }
+    },
+    {
+      "id": "UPLOAD-92f2639c6878",
+      "documentId": 21,
+      "uploadedAt": "2026-09-11T15:26:51.505147+00:00",
+      "sourceFileName": "BhoomiScan_Test_3_Field_Mismatches.pdf",
+      "extractedData": {
+        "owner_name": "Meera Deshmukh",
+        "co_owner": "Arjun Deshmuk",
+        "survey_number": "126-A",
+        "khasra_number": "126/8",
+        "khata_number": "307",
+        "plot_area": "4.25 Acres",
+        "village": "Karanjwan",
+        "tehsil": "Dindori",
+        "district": "Nashik",
+        "land_classification": "Agricultural - Dry Crop",
+        "ownership_details": "Joint ownership - 2 co-owners",
+        "mutation_record": "Entry 41, 22-Nov-2021",
+        "registration_info": "Deed 7814/2021"
+      }
+    }
+  ]
+}

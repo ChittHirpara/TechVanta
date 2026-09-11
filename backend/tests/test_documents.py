@@ -672,3 +672,68 @@ async def test_officer_notifications(client: AsyncClient):
     assert "title" in notifs[0]
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Re-upload: repeated uploads are independent & never compared to prior uploads
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_duplicate_upload_allowed_and_ignored_for_verification(
+    client: AsyncClient, db: AsyncSession, admin_token: str
+):
+    """
+    Uploading the same file twice must succeed both times (two independent
+    documents, no 'duplicate' rejection), and the verification payload
+    (GET /documents/{id}) must never be influenced by prior uploads.
+
+    Fraud Shield duplicate tracking remains available only through the
+    explicit /documents/{id}/duplicates endpoint.
+    """
+    from app.models.extracted_field import ExtractedField
+
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    with patch("app.api.documents.process_document"):
+        res1 = await client.post(
+            "/api/v1/documents/upload",
+            headers=headers,
+            files={"file": ("deed_same.pdf", io.BytesIO(b"%PDF-1.4 same content"), "application/pdf")},
+            data={"district": "Jaipur"},
+        )
+        res2 = await client.post(
+            "/api/v1/documents/upload",
+            headers=headers,
+            files={"file": ("deed_same.pdf", io.BytesIO(b"%PDF-1.4 same content"), "application/pdf")},
+            data={"district": "Jaipur"},
+        )
+    assert res1.status_code == 202, res1.text
+    assert res2.status_code == 202, res2.text
+    doc1_id = res1.json()["id"]
+    doc2_id = res2.json()["id"]
+    assert doc1_id != doc2_id  # second upload is a NEW document, not deduped/rejected
+
+    # Simulate the real pipeline: both uploads extract identical parcel fields
+    for doc_id in (doc1_id, doc2_id):
+        db.add_all([
+            ExtractedField(document_id=doc_id, field_name="owner_name",
+                           value="Same Parcel Owner", confidence_score=0.99, is_flagged=False),
+            ExtractedField(document_id=doc_id, field_name="survey_number",
+                           value="123/45", confidence_score=0.99, is_flagged=False),
+        ])
+    await db.commit()
+
+    # The separate Fraud Shield feature still detects the cross-upload duplicate
+    dup_res = await client.get(f"/api/v1/documents/{doc2_id}/duplicates", headers=headers)
+    assert dup_res.status_code == 200
+    dup_data = dup_res.json()
+    assert dup_data["has_suspected_duplicates"] is True
+    assert any(m["document_id"] == doc1_id for m in dup_data["matches"])
+
+    # ...but the verification payload is decoupled from prior uploads entirely
+    detail_res = await client.get(f"/api/v1/documents/{doc2_id}", headers=headers)
+    assert detail_res.status_code == 200
+    detail = detail_res.json()
+    assert detail["has_suspected_duplicates"] is False
+    assert detail["duplicate_count"] == 0
+    assert detail["top_duplicate_score"] is None
+
+
