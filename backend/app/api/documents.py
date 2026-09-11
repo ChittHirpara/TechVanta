@@ -424,9 +424,15 @@ async def get_document(
         dups = await find_duplicates(owner_name, survey_number, db, limit=100)
         matches = [d for d in dups if d.document_id != document_id]
 
+    # Reference-data comparison & risk (file-based trusted records)
+    from app.services.reference_comparison import full_risk_assessment
+    comparison, risk = full_risk_assessment(field_map, doc)
+
     doc_data = DocumentRead.model_validate(doc).model_dump()
     doc_data["has_suspected_duplicates"] = len(matches) > 0
     doc_data["duplicate_count"] = len(matches)
+    doc_data["comparison"] = comparison.to_dict()
+    doc_data["risk"] = risk.to_dict()
 
     return DocumentDetail(
         **doc_data,

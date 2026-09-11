@@ -57,6 +57,7 @@ from app.models.document import Document, DocumentStatus
 from app.models.extracted_field import ExtractedField
 from app.services.extraction import extract_fields
 from app.services.ocr import get_ocr_provider
+from app.services.reference_comparison import full_risk_assessment
 from app.services.validation import build_field_reports, validate_fields
 
 log = logging.getLogger(__name__)
@@ -133,6 +134,10 @@ class PipelineResult:
     total_duration_s: float
     steps: list[StepResult] = field(default_factory=list)
     error: str | None = None         # set if an unrecoverable error occurred
+    risk_score: int | None = None    # 0–100 from reference-data comparison
+    risk_level: str | None = None    # LOW | MEDIUM | HIGH
+    risk_applicable: bool = False    # True when a trusted record was matched
+    risk_mismatches: int = 0         # reference-vs-submitted discrepancy count
 
     @property
     def success(self) -> bool:
@@ -149,6 +154,12 @@ class PipelineResult:
             "total_duration_s": round(self.total_duration_s, 3),
             "success": self.success,
             "steps": [s.to_dict() for s in self.steps],
+            "risk": {
+                "score": self.risk_score,
+                "level": self.risk_level,
+                "applicable": self.risk_applicable,
+                "mismatch_count": self.risk_mismatches,
+            } if self.risk_score is not None else None,
             **({"error": self.error} if self.error else {}),
         }
 
@@ -284,6 +295,10 @@ async def process_document(
     fields_flagged   = 0
     violations_count = 0
     final_status     = "needs_review"    # safe default if we abort early
+    risk_score: int | None = None
+    risk_level: str | None = None
+    risk_applicable = False
+    risk_mismatches = 0
 
     async with _get_session(db) as session:
 
@@ -500,6 +515,23 @@ async def process_document(
             violations       = validate_fields(extracted_values)
             violations_count = len(violations)
 
+            # ── Reference-data comparison & risk assessment ───────────────────
+            comparison, risk = full_risk_assessment(extracted_values, doc)
+            risk_score       = risk.score
+            risk_level       = risk.level
+            risk_applicable  = risk.applicable
+            risk_mismatches  = risk.mismatch_count
+            log.info(
+                "[risk] document_id=%d reference_matched=%s score=%d level=%s mismatches=%d",
+                document_id, comparison.matched, risk_score, risk_level, risk_mismatches,
+            )
+            if risk_mismatches:
+                log.info(
+                    "[risk] mismatched fields: %s",
+                    ", ".join(f"{d.field}({d.submitted_value!r} vs {d.reference_value!r})"
+                              for d in comparison.discrepancies),
+                )
+
             # Use document-level OCR confidence for all fields
             # (per-field mapping would require bounding-box alignment — future work)
             ocr_conf_per_field = {k: ocr_avg_conf for k in extracted_values}
@@ -526,6 +558,10 @@ async def process_document(
                     "errors": sum(1 for v in violations if v.severity == "error"),
                     "warnings": sum(1 for v in violations if v.severity == "warning"),
                     "fields_flagged": fields_flagged,
+                    "risk_score": risk_score,
+                    "risk_level": risk_level,
+                    "risk_mismatches": risk_mismatches,
+                    "risk_applicable": risk_applicable,
                 },
             )
             await session.commit()
@@ -539,6 +575,9 @@ async def process_document(
                 "percent": 90,
                 "status": "processing",
                 "message": f"Validation complete: {fields_flagged} fields flagged for review",
+                "risk_score": risk_score,
+                "risk_level": risk_level,
+                "risk_mismatches": risk_mismatches,
             })
 
         # ── Step 6: Persist ExtractedField rows ───────────────────────────────
@@ -590,8 +629,11 @@ async def process_document(
         # ── Step 7: Determine and set final document status ───────────────────
         async with _step("set_final_status", step_results) as step:
             has_errors = any(v.severity == "error" for v in violations)
+            risk_blocks = risk_applicable and risk_level in ("MEDIUM", "HIGH")
 
-            if fields_flagged > 0 or has_errors:
+            # A reference-data comparison that found discrepancies (MEDIUM/HIGH
+            # risk) must never be auto-verified — it goes to a human verifier.
+            if fields_flagged > 0 or has_errors or risk_blocks:
                 final_status = "needs_review"
             else:
                 final_status = "verified"
@@ -607,6 +649,10 @@ async def process_document(
                     "fields_saved": fields_saved,
                     "fields_flagged": fields_flagged,
                     "violations": violations_count,
+                    "risk_score": risk_score,
+                    "risk_level": risk_level,
+                    "risk_applicable": risk_applicable,
+                    "risk_mismatches": risk_mismatches,
                     "ocr_avg_confidence": ocr_avg_conf,
                     "total_duration_s": round(time.perf_counter() - wall_start, 3),
                 },
@@ -621,6 +667,9 @@ async def process_document(
                 "message": f"Pipeline complete. Status: {final_status}",
                 "fields_flagged": fields_flagged,
                 "confidence": round(ocr_avg_conf, 3),
+                "risk_score": risk_score,
+                "risk_level": risk_level,
+                "risk_mismatches": risk_mismatches,
             })
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -646,4 +695,8 @@ async def process_document(
         violations_count=violations_count,
         total_duration_s=total_s,
         steps=step_results,
+        risk_score=risk_score,
+        risk_level=risk_level,
+        risk_applicable=risk_applicable,
+        risk_mismatches=risk_mismatches,
     )

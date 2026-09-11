@@ -244,6 +244,118 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
         </div>
       )}
 
+      {/* Trusted Reference Comparison & Risk Assessment */}
+      {doc.risk && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header">
+            <div>
+              <h3 className="card-title">
+                <IconShield size={14} />
+                {t('workspace.labels.risk_title')}
+              </h3>
+              <div className="card-subtitle">
+                {t('workspace.labels.risk_subtitle')}
+              </div>
+            </div>
+            <span
+              className={`badge ${
+                doc.risk.level === 'HIGH'
+                  ? 'badge-flagged'
+                  : doc.risk.level === 'MEDIUM'
+                  ? 'badge-needs_review'
+                  : 'badge-verified'
+              }`}
+            >
+              <span className="status-dot" />
+              {doc.risk.level} · {t('workspace.labels.risk_score', { score: doc.risk.score })}
+            </span>
+          </div>
+
+          <div className="card-body" style={{ padding: '12px 16px' }}>
+            {doc.risk.applicable === false ? (
+              <div className="gov-alert gov-alert-warning">
+                <IconAlert size={16} />
+                <div style={{ fontSize: 13 }}>
+                  {t('workspace.labels.risk_no_reference')}
+                </div>
+              </div>
+            ) : doc.risk.mismatch_count === 0 ? (
+              <div className="gov-alert gov-alert-success">
+                <IconCheck size={16} />
+                <div style={{ fontSize: 13 }}>
+                  {t('workspace.labels.risk_clean')}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="gov-alert gov-alert-danger" style={{ marginBottom: 10 }}>
+                  <IconAlert size={16} />
+                  <div>
+                    <strong>
+                      {t('workspace.labels.risk_differs', { count: doc.risk.mismatch_count })}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="table-responsive">
+                  <table className="gov-table">
+                    <thead>
+                      <tr>
+                        <th>{t('workspace.labels.field_identifier')}</th>
+                        <th>{t('workspace.labels.risk_reference')}</th>
+                        <th>{t('workspace.labels.risk_submitted')}</th>
+                        <th>{t('workspace.risk_verdict')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(doc.comparison?.mismatches || []).map((m) => (
+                        <tr key={m.field}>
+                          <td>
+                            <code className="font-mono text-xs text-gov-navy-900 font-semibold">
+                              {m.field}
+                            </code>
+                          </td>
+                          <td>
+                            <strong style={{ fontSize: 13 }}>
+                              {m.reference_value || '—'}
+                            </strong>
+                          </td>
+                          <td>
+                            <strong style={{ fontSize: 13 }}>
+                              {m.submitted_value || '—'}
+                            </strong>
+                          </td>
+                          <td>
+                            <span
+                              className={`badge ${
+                                m.severity === 'error' ? 'badge-flagged' : 'badge-needs_review'
+                              }`}
+                            >
+                              {m.severity === 'error'
+                                ? t('workspace.risk_mismatch')
+                                : t('workspace.risk_review_verdict')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ marginTop: 10, fontSize: 12, color: 'var(--slate-600)' }}>
+                  {doc.risk.reasons.map((r, i) => (
+                    <div key={i} style={{ marginBottom: 2, display: 'flex', gap: 6 }}>
+                      <span>•</span>
+                      <span>{r}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Split-Screen Dual Viewer */}
       <div className="workspace-grid">
         {/* Left Pane: Original Deed Viewer */}

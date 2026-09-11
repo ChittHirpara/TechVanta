@@ -140,6 +140,9 @@
     "btn_dilrmp_export": "📋 DILRMP 2.0 Standard National Export",
     "btn_certificate": "Official Certificate",
     "btn_reprocess": "Reprocess",
+    "risk_verdict": "Verdict",
+    "risk_mismatch": "Mismatch",
+    "risk_review_verdict": "Review",
     "tabs": {
       "entities": "Entities",
       "audit_trail": "Audit Trail"
@@ -155,7 +158,15 @@
       "certificate_banner": "View and print official sovereign verification certificate with tamper-evident QR verification code",
       "fraud_shield_warning": "Fraud Shield Warning — Potential Duplicate Land Record Detected:",
       "status_secured_verified": "SECURED_VERIFIED",
-      "jurisdiction": "Jurisdiction:"
+      "jurisdiction": "Jurisdiction:",
+      "risk_title": "Trusted Reference Comparison & Risk Assessment",
+      "risk_subtitle": "Field-by-field verification against the trusted revenue register record",
+      "risk_score": "Risk Score {{score}}",
+      "risk_no_reference": "No trusted reference record matched the document's jurisdiction/parcel. Cross-check against the revenue register is required before final verification.",
+      "risk_clean": "No discrepancies were found against the trusted reference record.",
+      "risk_differs": "{{count}} field(s) differ from the trusted reference record — manual review required.",
+      "risk_reference": "Trusted Reference",
+      "risk_submitted": "Submitted / Extracted"
     },
     "btn_back_registry": "← Back to Registry",
     "btn_download_original": "Download Original",

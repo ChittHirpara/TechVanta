@@ -1,0 +1,54 @@
+{
+  "description": "Trusted reference land records for field-by-field verification.",
+  "source": "Maharashtra / Rajasthan State Revenue Department trusted registers (7/12 extracts, khatauni, ROR)",
+  "records": [
+    {
+      "id": "MH-NAS-DIN-KAR-307",
+      "district": "Nashik",
+      "tehsil": "Dindori",
+      "village": "Karanjwan",
+      "survey_number": "126-A",
+      "khasra_number": "126/3",
+      "khata_number": "307",
+      "plot_area": "3.25 Acres",
+      "land_classification": "Agricultural - Dry Crop",
+      "ownership_details": "Joint ownership - 2 co-owners",
+      "mutation_record": "Entry 41, 22-Nov-2021",
+      "registration_info": "Deed 7814/2021",
+      "owner_name": "Meera Deshmukh",
+      "co_owner": "Arjun Deshmukh"
+    },
+    {
+      "id": "RJ-JAI-SAN-RKK-112",
+      "district": "Jaipur",
+      "tehsil": "Sanganer",
+      "village": "Rampur Kalan",
+      "survey_number": "78-B",
+      "khasra_number": "451/2",
+      "khata_number": "112",
+      "plot_area": "2 Bigha 14 Biswa",
+      "land_classification": "Agricultural - Irrigated",
+      "ownership_details": "Single owner, no mortgage",
+      "mutation_record": "Entry 23, 15-Mar-2019",
+      "registration_info": "Deed 4521/2019",
+      "owner_name": "Ram Kumar Singh",
+      "co_owner": null
+    },
+    {
+      "id": "RJ-JAI-SAN-CHKS-05",
+      "district": "Jaipur",
+      "tehsil": "Sanganer",
+      "village": "Chaksu",
+      "survey_number": "45-D",
+      "khasra_number": "118",
+      "khata_number": "56",
+      "plot_area": "1.85 acres",
+      "land_classification": "Agricultural - Unirrigated",
+      "ownership_details": "Single owner",
+      "mutation_record": "Entry 12, 08-Jun-2020",
+      "registration_info": "Deed 3321/2020",
+      "owner_name": "Sunita Verma",
+      "co_owner": null
+    }
+  ]
+}
