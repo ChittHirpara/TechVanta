@@ -907,6 +907,8 @@ async def get_document_file(
         path=file_path,
         media_type=media_type,
         filename=doc.filename,
+        content_disposition_type="inline",
+        headers={"Cache-Control": "no-store"},
     )
 
 

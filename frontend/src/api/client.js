@@ -147,6 +147,17 @@ export const documentsApi = {
     }),
   getFileUrl: (id, token) =>
     `${API_BASE}/documents/${id}/file?token=${encodeURIComponent(token || getStoredToken() || '')}`,
+  getFileBlob: async (id, token) => {
+    const headers = {};
+    const accessToken = token || getStoredToken();
+    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+    const res = await fetch(`${API_BASE}/documents/${id}/file`, { headers });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(errData.detail || `Error ${res.status}: ${res.statusText}`);
+    }
+    return res.blob();
+  },
   getCertificateUrl: (id, token) =>
     `${API_BASE}/documents/${id}/certificate?token=${encodeURIComponent(token || getStoredToken() || '')}`,
 };

@@ -2466,15 +2466,39 @@
       document.getElementById('ws-doc-heading').innerText = `Document #${docId}`;
       document.getElementById('ws-duplicate-alert').style.display = 'none';
 
-      // Load File Preview via auth token
+      // Load File Preview via auth header (Blob + object URL → always renders inline)
       const previewContainer = document.getElementById('document-preview-container');
       const fileUrl = `${API_BASE}/documents/${docId}/file?token=${encodeURIComponent(state.token)}`;
       document.getElementById('btn-preview-download').href = fileUrl;
 
-      // Check file extension / type
-      previewContainer.innerHTML = `
-        <iframe src="${fileUrl}" title="Scanned Deed Document Viewer" style="width:100%; height:100%;"></iframe>
-      `;
+      if (state.previewObjectUrl) {
+        URL.revokeObjectURL(state.previewObjectUrl);
+        state.previewObjectUrl = null;
+      }
+
+      previewContainer.innerHTML =
+        '<div style="color:var(--slate-400); font-size:13px;">Loading document preview...</div>';
+
+      (async () => {
+        try {
+          const res = await fetch(`${API_BASE}/documents/${docId}/file`, {
+            headers: { Authorization: `Bearer ${state.token}` },
+          });
+          if (!res.ok) throw new Error('Failed to load document preview');
+          const blob = await res.blob();
+          if (state.currentDocId !== docId) return;
+          state.previewObjectUrl = URL.createObjectURL(blob);
+          previewContainer.innerHTML = `
+            <iframe src="${state.previewObjectUrl}" title="Scanned Deed Document Viewer" style="width:100%; height:100%;"></iframe>
+          `;
+        } catch (err) {
+          previewContainer.innerHTML = `
+            <div style="color:var(--rose-400); font-size:13px; text-align:center; padding:24px;">
+              ${err.message || 'Document preview could not be loaded.'}
+            </div>
+          `;
+        }
+      })();
 
       // Fetch Full Document Details, Duplicates, and Integrity concurrently
       try {

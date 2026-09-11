@@ -167,7 +167,9 @@
       "risk_clean": "No discrepancies were found against the trusted reference record.",
       "risk_differs": "{{count}} field(s) differ from the trusted reference record — manual review required.",
       "risk_reference": "Trusted Reference",
-      "risk_submitted": "Submitted / Extracted"
+      "risk_submitted": "Submitted / Extracted",
+      "preview_loading": "Loading document preview...",
+      "preview_failed": "Document preview could not be loaded."
     },
     "btn_back_registry": "← Back to Registry",
     "btn_download_original": "Download Original",

@@ -28,6 +28,8 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
   const [integrity, setIntegrity] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [fileUrl, setFileUrl] = useState(null);
+  const [fileError, setFileError] = useState('');
 
   // Modals state
   const [selectedField, setSelectedField] = useState(null);
@@ -64,6 +66,30 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
   useEffect(() => {
     fetchWorkspaceData();
   }, [fetchWorkspaceData]);
+
+  useEffect(() => {
+    if (!docId) return;
+    let objectUrl = null;
+    let cancelled = false;
+    setFileUrl(null);
+    setFileError('');
+
+    (async () => {
+      try {
+        const blob = await documentsApi.getFileBlob(docId, token);
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setFileUrl(objectUrl);
+      } catch (err) {
+        if (!cancelled) setFileError(err.message || 'Failed to load the document for preview.');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [docId, token]);
 
   const handleVerify = async () => {
     if (!window.confirm(`Are you sure you want to sign off and verify Land Record #${docId}?`)) {
@@ -140,7 +166,7 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
     );
   }
 
-  const fileUrl = documentsApi.getFileUrl(docId, token);
+  const downloadUrl = documentsApi.getFileUrl(docId, token);
   const isImage = /\.(png|jpg|jpeg|webp|tiff)$/i.test(doc.filename);
   const jurisdiction =
     [doc.district, doc.tehsil, doc.village].filter(Boolean).join(' / ') || 'Not Specified';
@@ -339,7 +365,7 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
               {doc.filename} (ID: #{doc.id})
             </span>
             <a
-              href={fileUrl}
+              href={downloadUrl}
               target="_blank"
               rel="noreferrer"
               download={doc.filename}
@@ -351,7 +377,19 @@ export default function Workspace({ docId, onBackToRegistry, onReprocess, showTo
           </div>
 
           <div className="preview-content">
-            {isImage ? (
+            {fileError ? (
+              <div style={{ color: 'var(--rose-400)', fontSize: 13, textAlign: 'center', padding: 24 }}>
+                <div style={{ marginBottom: 8 }}>{t('workspace.labels.preview_failed')}</div>
+                <a className="btn btn-sm btn-primary" href={downloadUrl} target="_blank" rel="noreferrer">
+                  <IconDownload size={13} />
+                  {t('workspace.btn_download_original')}
+                </a>
+              </div>
+            ) : !fileUrl ? (
+              <div style={{ color: 'var(--slate-400)', fontSize: 13 }}>
+                {t('workspace.labels.preview_loading')}
+              </div>
+            ) : isImage ? (
               <img src={fileUrl} alt={doc.filename} />
             ) : (
               <iframe
