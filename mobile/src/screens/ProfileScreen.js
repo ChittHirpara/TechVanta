@@ -8,19 +8,25 @@ import {
   Alert,
   Modal,
   FlatList,
+  Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n/i18n';
 import { clearCompletedQueueItems, getQueueItems } from '../utils/queueDatabase';
+import { getApiBaseUrl, setCustomApiBaseUrl } from '../api/client';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { colors, radius, typography, spacing } from '../theme/theme';
+import Input from '../components/common/Input';
+import { colors, radius, typography, spacing, shadows } from '../theme/theme';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const { language, setLanguage, currentLangObj, languages, t } = useI18n();
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [queueStats, setQueueStats] = useState({ total: 0, uploaded: 0, pending: 0 });
+  const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
+  const [serverModalVisible, setServerModalVisible] = useState(false);
 
   const loadStats = async () => {
     try {
@@ -35,10 +41,17 @@ export default function ProfileScreen({ navigation }) {
     loadStats();
   }, []);
 
+  const handleSaveServerUrl = async (url) => {
+    await setCustomApiBaseUrl(url);
+    setServerUrl(getApiBaseUrl());
+    setServerModalVisible(false);
+    Alert.alert('Endpoint Updated', `Active API target: ${getApiBaseUrl()}`);
+  };
+
   const handleClearCache = async () => {
     Alert.alert(
-      'Clear Cache',
-      'This will remove local image copies of already synced records to free device space. Queued items will NOT be deleted.',
+      'Clear Synced Cache',
+      'This will remove local image copies of already synced records to free device storage. Queued items will remain safe.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -46,7 +59,7 @@ export default function ProfileScreen({ navigation }) {
           onPress: async () => {
             await clearCompletedQueueItems();
             await loadStats();
-            Alert.alert('Cache Cleared', 'Completed captures cleared from local storage.');
+            Alert.alert('Storage Cleaned', 'Completed captures cleared from local storage.');
           },
         },
       ]
@@ -54,7 +67,7 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+    Alert.alert('Sign Out', 'Are you sure you want to sign out from BhoomiScan AI?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign Out',
@@ -67,101 +80,138 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       {/* Officer ID Card */}
       <Card style={styles.profileCard}>
         <View style={styles.avatarRow}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>👮</Text>
+            <Text style={styles.avatarText}>
+              {(user?.username || 'C')[0].toUpperCase()}
+            </Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.userName}>{user?.username || 'Field Officer'}</Text>
+            <Text style={styles.userName}>{user?.full_name || user?.username || 'Carol'}</Text>
             <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>GOVERNMENT FIELD OFFICER</Text>
+              <Text style={styles.roleBadgeText}>
+                {(user?.role || 'FIELD_OFFICER').toUpperCase()}
+              </Text>
             </View>
             <Text style={styles.jurisdictionText}>
-              National Land Records Modernization Program (DILRMP), Govt. of India
+              Jaipur Revenue Division • DoLR Govt. of India
             </Text>
           </View>
         </View>
       </Card>
 
-      {/* Language Selection */}
+      {/* Sovereign System Settings */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Regional Language</Text>
+        <Text style={styles.sectionTitle}>SYSTEM & LANGUAGE SETTINGS</Text>
       </View>
-      <Card style={styles.card}>
+
+      <Card style={styles.settingsCard}>
+        {/* Language Selection */}
         <TouchableOpacity
           style={styles.settingRow}
           onPress={() => setLangModalVisible(true)}
+          activeOpacity={0.7}
         >
-          <View>
-            <Text style={styles.settingLabel}>{t('profile_language')}</Text>
-            <Text style={styles.settingValue}>
-              {currentLangObj.name} ({currentLangObj.nativeName})
-            </Text>
+          <View style={styles.settingLeft}>
+            <View style={styles.settingIconBox}>
+              <Ionicons name="globe-outline" size={18} color={colors.saffron500} />
+            </View>
+            <View>
+              <Text style={styles.settingLabel}>Regional Language</Text>
+              <Text style={styles.settingValue}>
+                {currentLangObj?.name} ({currentLangObj?.nativeName})
+              </Text>
+            </View>
           </View>
-          <Text style={styles.chevron}>🌐 Change</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.slate400} />
+        </TouchableOpacity>
+
+        <View style={styles.settingDivider} />
+
+        {/* Server Endpoint URL */}
+        <TouchableOpacity
+          style={styles.settingRow}
+          onPress={() => setServerModalVisible(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.settingLeft}>
+            <View style={styles.settingIconBox}>
+              <Ionicons name="server-outline" size={18} color={colors.govNavy600} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.settingLabel}>Backend API Gateway</Text>
+              <Text style={styles.settingValue} numberOfLines={1}>{serverUrl}</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.slate400} />
+        </TouchableOpacity>
+
+        <View style={styles.settingDivider} />
+
+        {/* Offline Sync Cache */}
+        <TouchableOpacity
+          style={styles.settingRow}
+          onPress={handleClearCache}
+          activeOpacity={0.7}
+        >
+          <View style={styles.settingLeft}>
+            <View style={styles.settingIconBox}>
+              <Ionicons name="trash-bin-outline" size={18} color={colors.slate600} />
+            </View>
+            <View>
+              <Text style={styles.settingLabel}>Local Storage Cache</Text>
+              <Text style={styles.settingValue}>
+                {queueStats.uploaded} Synced • {queueStats.pending} Pending
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.clearBtnText}>Clean</Text>
         </TouchableOpacity>
       </Card>
 
-      {/* Offline Storage & Queue Stats */}
+      {/* Compliance Information */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Local Storage & Queue</Text>
+        <Text style={styles.sectionTitle}>SOVEREIGN GOVERNANCE SPECIFICATIONS</Text>
       </View>
-      <Card style={styles.card}>
-        <View style={styles.statRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{queueStats.pending}</Text>
-            <Text style={styles.statLabel}>Pending Sync</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{queueStats.uploaded}</Text>
-            <Text style={styles.statLabel}>Synced</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNumber}>{queueStats.total}</Text>
-            <Text style={styles.statLabel}>Total Local</Text>
+
+      <Card style={styles.complianceCard}>
+        <View style={styles.complianceItem}>
+          <Ionicons name="shield-checkmark" size={16} color={colors.emerald600} />
+          <View style={styles.complianceTextWrapper}>
+            <Text style={styles.complianceHeader}>DILRMP Technical Core</Text>
+            <Text style={styles.complianceDetail}>Mandatory 6 legal attribute extraction matrix</Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.clearBtn} onPress={handleClearCache}>
-          <Text style={styles.clearBtnText}>🧹 {t('profile_clear_cache')}</Text>
-        </TouchableOpacity>
-      </Card>
+        <View style={styles.complianceItem}>
+          <Ionicons name="barcode-outline" size={16} color={colors.saffron600} />
+          <View style={styles.complianceTextWrapper}>
+            <Text style={styles.complianceHeader}>Bhu-Aadhaar (ULPIN)</Text>
+            <Text style={styles.complianceDetail}>14-digit geo-referenced cadastral identifier</Text>
+          </View>
+        </View>
 
-      {/* App & System Specs */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Application Information</Text>
-      </View>
-      <Card style={styles.card}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>System Theme</Text>
-          <Text style={styles.infoVal}>GIGW Land Registry Sovereign</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>App Version</Text>
-          <Text style={styles.infoVal}>v2.4.0 (SIH26018 Production)</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Sync Architecture</Text>
-          <Text style={styles.infoVal}>Offline-First SQLite + NetInfo</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Languages Supported</Text>
-          <Text style={styles.infoVal}>22 Schedule VIII Indian Languages</Text>
+        <View style={styles.complianceItem}>
+          <Ionicons name="lock-closed" size={16} color={colors.govNavy600} />
+          <View style={styles.complianceTextWrapper}>
+            <Text style={styles.complianceHeader}>SHA-256 Ledger Security</Text>
+            <Text style={styles.complianceDetail}>Cryptographic state signatures for civil litigation defense</Text>
+          </View>
         </View>
       </Card>
 
-      {/* Sign Out */}
+      {/* Sign Out Button */}
       <Button
-        title={t('logout')}
-        variant="danger"
+        title="Sign Out Field Officer"
         onPress={handleLogout}
-        style={{ marginTop: spacing.lg }}
+        variant="danger"
+        style={styles.logoutBtn}
       />
 
-      {/* Language Selector Modal */}
+      {/* Language Modal */}
       <Modal
         visible={langModalVisible}
         animationType="slide"
@@ -170,46 +220,89 @@ export default function ProfileScreen({ navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Regional Language</Text>
+            <View style={styles.modalTop}>
+              <Text style={styles.modalTitle}>Select Language / भाषा चुनें</Text>
               <TouchableOpacity onPress={() => setLangModalVisible(false)}>
-                <Text style={styles.closeText}>✕</Text>
+                <Ionicons name="close" size={20} color={colors.slate600} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.modalSub}>
-              Choose from 22 official Schedule VIII Indian languages
-            </Text>
-
             <FlatList
               data={languages}
               keyExtractor={(item) => item.code}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[
-                    styles.langItem,
-                    language === item.code && styles.langItemActive,
-                  ]}
+                  style={[styles.langItem, language === item.code && styles.langItemActive]}
                   onPress={() => {
                     setLanguage(item.code);
                     setLangModalVisible(false);
                   }}
                 >
                   <View>
-                    <Text
-                      style={[
-                        styles.langName,
-                        language === item.code && styles.langNameActive,
-                      ]}
-                    >
+                    <Text style={[styles.langName, language === item.code && styles.langNameActive]}>
                       {item.name}
                     </Text>
                     <Text style={styles.langNative}>{item.nativeName}</Text>
                   </View>
-                  {language === item.code ? (
-                    <Text style={styles.checkIcon}>✓</Text>
-                  ) : null}
+                  {language === item.code && (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.emerald600} />
+                  )}
                 </TouchableOpacity>
               )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Server URL Modal */}
+      <Modal
+        visible={serverModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setServerModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalTop}>
+              <Text style={styles.modalTitle}>Configure API Gateway</Text>
+              <TouchableOpacity onPress={() => setServerModalVisible(false)}>
+                <Ionicons name="close" size={20} color={colors.slate600} />
+              </TouchableOpacity>
+            </View>
+
+            <Input
+              label="Backend Endpoint URL"
+              value={serverUrl}
+              onChangeText={setServerUrl}
+              placeholder="http://10.143.194.49:8000/api/v1"
+              autoCapitalize="none"
+            />
+
+            <View style={styles.presetRow}>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() => handleSaveServerUrl('http://10.143.194.49:8000/api/v1')}
+              >
+                <Text style={styles.presetChipText}>📡 Wi-Fi (10.143.194.49)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() => handleSaveServerUrl('http://localhost:8000/api/v1')}
+              >
+                <Text style={styles.presetChipText}>💻 Localhost:8000</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.presetChip}
+                onPress={() => handleSaveServerUrl('http://10.0.2.2:8000/api/v1')}
+              >
+                <Text style={styles.presetChipText}>📱 Emulator (10.0.2.2)</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Button
+              title="Apply Server Endpoint"
+              onPress={() => handleSaveServerUrl(serverUrl)}
+              variant="saffron"
+              style={{ marginTop: spacing.md }}
             />
           </View>
         </View>
@@ -228,196 +321,227 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   profileCard: {
-    backgroundColor: colors.govNavy900,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderColor: colors.borderCard,
+    borderWidth: 1,
     marginBottom: spacing.md,
+    ...shadows.sm,
   },
   avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.govNavy800,
-    justifyContent: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.govNavy900,
     alignItems: 'center',
-    marginRight: spacing.md,
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.saffron500,
+    marginRight: 12,
   },
   avatarText: {
-    fontSize: 28,
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.saffron400,
   },
   profileInfo: {
     flex: 1,
   },
   userName: {
-    fontSize: typography.sizes.lg,
-    fontWeight: '700',
-    color: colors.white,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.govNavy950,
   },
   roleBadge: {
-    backgroundColor: colors.saffron600,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: radius.full,
-    alignSelf: 'flex-start',
-    marginTop: 4,
+    borderRadius: radius.xs,
+    marginVertical: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
   },
   roleBadgeText: {
-    color: colors.white,
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    color: colors.saffron700,
+    letterSpacing: 0.4,
   },
   jurisdictionText: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate300,
-    marginTop: 4,
+    fontSize: 10.5,
+    color: colors.slate500,
   },
   sectionHeader: {
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
+    marginBottom: 6,
+    paddingHorizontal: 2,
   },
   sectionTitle: {
-    fontSize: typography.sizes.sm,
-    fontWeight: '700',
-    color: colors.slate700,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: colors.slate500,
+    letterSpacing: 0.6,
   },
-  card: {
-    marginBottom: spacing.xs,
+  settingsCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    borderColor: colors.borderCard,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+    ...shadows.sm,
   },
   settingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
+  settingIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: colors.govNavy50,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   settingLabel: {
-    fontSize: typography.sizes.md,
-    fontWeight: '600',
-    color: colors.slate800,
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.govNavy950,
   },
   settingValue: {
-    fontSize: typography.sizes.xs,
+    fontSize: 11,
     color: colors.slate500,
-    marginTop: 2,
+    marginTop: 1,
   },
-  chevron: {
-    fontSize: typography.sizes.sm,
-    color: colors.govNavy600,
-    fontWeight: '600',
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.slate100,
-  },
-  statBox: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: typography.sizes.xl,
-    fontWeight: '800',
-    color: colors.govNavy900,
-  },
-  statLabel: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate500,
-    marginTop: 2,
-  },
-  clearBtn: {
-    marginTop: spacing.sm,
-    padding: spacing.xs,
-    alignItems: 'center',
+  settingDivider: {
+    height: 1,
+    backgroundColor: colors.slate100,
+    marginHorizontal: 8,
   },
   clearBtnText: {
-    fontSize: typography.sizes.xs,
-    color: colors.rose700,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.rose600,
   },
-  infoRow: {
+  complianceCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderColor: colors.borderCard,
+    borderWidth: 1,
+    marginBottom: spacing.lg,
+    ...shadows.sm,
+    gap: 12,
+  },
+  complianceItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.slate100,
+    alignItems: 'flex-start',
+    gap: 10,
   },
-  infoLabel: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate600,
+  complianceTextWrapper: {
+    flex: 1,
   },
-  infoVal: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '600',
-    color: colors.slate900,
+  complianceHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.govNavy900,
+  },
+  complianceDetail: {
+    fontSize: 10.5,
+    color: colors.slate500,
+    marginTop: 1,
+  },
+  logoutBtn: {
+    marginBottom: spacing.xl,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(6, 19, 37, 0.75)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    maxHeight: '80%',
-    padding: spacing.md,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: spacing.lg,
+    maxHeight: '75%',
+    ...shadows.lg,
   },
-  modalHeader: {
+  modalTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate200,
   },
   modalTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: '700',
-    color: colors.slate900,
-  },
-  modalSub: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate500,
-    marginBottom: spacing.md,
-    marginTop: 2,
-  },
-  closeText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.slate500,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.govNavy950,
   },
   langItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.slate100,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    marginBottom: 4,
+    backgroundColor: colors.slate50,
   },
   langItemActive: {
-    backgroundColor: colors.govNavy50,
+    backgroundColor: colors.emerald50,
+    borderWidth: 1,
+    borderColor: colors.emerald500,
   },
   langName: {
-    fontSize: typography.sizes.md,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.slate800,
   },
   langNameActive: {
-    color: colors.govNavy700,
+    color: colors.emerald800,
     fontWeight: '700',
   },
   langNative: {
-    fontSize: typography.sizes.xs,
+    fontSize: 11,
     color: colors.slate500,
-    marginTop: 2,
+    marginTop: 1,
   },
-  checkIcon: {
-    fontSize: typography.sizes.md,
-    fontWeight: '700',
-    color: colors.govNavy600,
+  presetRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: spacing.xs,
+  },
+  presetChip: {
+    backgroundColor: colors.govNavy50,
+    borderColor: colors.govNavy100,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.sm,
+  },
+  presetChipText: {
+    fontSize: 11,
+    color: colors.govNavy800,
+    fontWeight: '600',
   },
 });

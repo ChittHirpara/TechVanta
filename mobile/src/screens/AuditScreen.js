@@ -6,15 +6,20 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
+  Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { documentsApi } from '../api/client';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { colors, radius, typography, spacing } from '../theme/theme';
+import { colors, radius, typography, spacing, shadows } from '../theme/theme';
 
 export default function AuditScreen({ route, navigation }) {
-  const { documentId } = route.params || {};
+  const { documentId: paramDocId } = route.params || {};
 
+  const [documentList, setDocumentList] = useState([]);
+  const [selectedDocId, setSelectedDocId] = useState(paramDocId || null);
   const [document, setDocument] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [integrity, setIntegrity] = useState(null);
@@ -22,13 +27,35 @@ export default function AuditScreen({ route, navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
+  // If no documentId was passed, load available documents first
+  useEffect(() => {
+    async function loadDocs() {
+      try {
+        const res = await documentsApi.list({ pageSize: 10 });
+        const items = res.items || res || [];
+        setDocumentList(items);
+        if (!selectedDocId && items.length > 0) {
+          setSelectedDocId(items[0].id);
+        }
+      } catch (_) {}
+    }
+    loadDocs();
+  }, []);
+
   const fetchAuditData = useCallback(async () => {
-    if (!documentId) return;
+    const docId = selectedDocId || paramDocId;
+    if (!docId) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
+      setLoading(true);
       const [docData, auditData, integrityData] = await Promise.all([
-        documentsApi.get(documentId).catch(() => null),
-        documentsApi.getAudit(documentId).catch(() => []),
-        documentsApi.getIntegrity(documentId).catch(() => null),
+        documentsApi.get(docId).catch(() => null),
+        documentsApi.getAudit(docId).catch(() => []),
+        documentsApi.getIntegrity(docId).catch(() => null),
       ]);
       setError(null);
 
@@ -41,7 +68,7 @@ export default function AuditScreen({ route, navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [documentId]);
+  }, [selectedDocId, paramDocId]);
 
   useEffect(() => {
     fetchAuditData();
@@ -52,136 +79,183 @@ export default function AuditScreen({ route, navigation }) {
     fetchAuditData();
   };
 
-  const getActionColor = (action) => {
+  const getActionMeta = (action) => {
     const act = (action || '').toUpperCase();
-    if (act.includes('VERIF')) return colors.emerald700;
-    if (act.includes('PATCH') || act.includes('EDIT')) return colors.saffron600;
-    if (act.includes('UPLOAD') || act.includes('INGEST')) return colors.govNavy600;
-    if (act.includes('ERR') || act.includes('FAIL')) return colors.rose600;
-    return colors.slate700;
+    if (act.includes('VERIF')) {
+      return { icon: 'checkmark-done-circle', color: colors.emerald600, bg: 'rgba(16, 185, 129, 0.12)', label: 'VERIFIED & SEALED' };
+    }
+    if (act.includes('PATCH') || act.includes('EDIT')) {
+      return { icon: 'create-outline', color: colors.saffron600, bg: 'rgba(245, 158, 11, 0.12)', label: 'OFFICER CORRECTION' };
+    }
+    if (act.includes('UPLOAD') || act.includes('INGEST')) {
+      return { icon: 'cloud-upload-outline', color: colors.govNavy600, bg: 'rgba(37, 99, 235, 0.12)', label: 'DOCUMENT INGESTED' };
+    }
+    if (act.includes('PIPELINE_STARTED')) {
+      return { icon: 'cog-outline', color: colors.govNavy700, bg: 'rgba(19, 52, 88, 0.12)', label: 'AI PIPELINE STARTED' };
+    }
+    if (act.includes('ERR') || act.includes('FAIL')) {
+      return { icon: 'alert-circle-outline', color: colors.rose600, bg: 'rgba(220, 38, 38, 0.12)', label: 'PIPELINE LOG' };
+    }
+    return { icon: 'time-outline', color: colors.slate600, bg: colors.slate100, label: act || 'AUDIT EVENT' };
   };
-
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.govNavy600} />
-        <Text style={styles.loadingText}>Fetching Cryptographic Audit Trail...</Text>
-      </View>
-    );
-  }
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          colors={[colors.govNavy600]}
-          tintColor={colors.govNavy600}
+          colors={[colors.saffron500]}
+          tintColor={colors.saffron500}
         />
       }
     >
-      {/* Header Info */}
+      {/* Top Sovereign Banner */}
       <Card style={styles.headerCard}>
-        <Text style={styles.headerTitle}>
-          Audit Trail: {document?.title || `Document #${documentId}`}
-        </Text>
-        <Text style={styles.headerSub}>
-          Immutable event log for legal verification & sovereign compliance
-        </Text>
+        <View style={styles.headerTop}>
+          <View style={styles.sealIcon}>
+            <Ionicons name="shield-checkmark" size={24} color={colors.saffron500} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>
+              {document?.title || (selectedDocId ? `Document #${selectedDocId}` : 'Legal Audit Ledger')}
+            </Text>
+            <Text style={styles.headerSub}>
+              Immutable SHA-256 chain of custody for legal court compliance
+            </Text>
+          </View>
+        </View>
 
-        {integrity?.sha256 || document?.sha256_hash ? (
+        {/* SHA-256 Hash Display */}
+        {(integrity?.sha256 || document?.sha256_hash) && (
           <View style={styles.hashBox}>
-            <Text style={styles.hashLabel}>🔒 SHA-256 Integrity Seal:</Text>
-            <Text style={styles.hashValue}>
+            <View style={styles.hashHeader}>
+              <Ionicons name="lock-closed" size={12} color={colors.saffron600} />
+              <Text style={styles.hashLabel}>CRYPTOGRAPHIC SHA-256 SEAL:</Text>
+            </View>
+            <Text style={styles.hashValue} numberOfLines={2}>
               {integrity?.sha256 || document?.sha256_hash}
             </Text>
           </View>
-        ) : null}
+        )}
       </Card>
 
-      {error ? (
-        <Card style={styles.errorCard}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
-          <Button title="Retry Loading" onPress={fetchAuditData} variant="outline" style={{ marginTop: spacing.sm }} />
-        </Card>
-      ) : null}
+      {/* Document Selector Pills (if multiple available) */}
+      {documentList.length > 1 && (
+        <View style={styles.selectorSection}>
+          <Text style={styles.selectorTitle}>SELECT DOCUMENT RECORD:</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.docPillList}>
+            {documentList.map((doc) => {
+              const isCurrent = doc.id === (selectedDocId || paramDocId);
+              return (
+                <TouchableOpacity
+                  key={doc.id}
+                  style={[styles.docPill, isCurrent && styles.docPillActive]}
+                  onPress={() => setSelectedDocId(doc.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.docPillText, isCurrent && styles.docPillTextActive]}>
+                    Doc #{doc.id} • {doc.district || 'Jaipur'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Audit Timeline Section */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
-          Verification Chronology ({auditLogs.length} events)
+      <View style={styles.timelineHeader}>
+        <Text style={styles.timelineTitle}>
+          Verification Chronology ({auditLogs.length} Events)
         </Text>
+        <Text style={styles.timelineSub}>Tamper-evident sovereign audit trail</Text>
       </View>
 
-      {auditLogs.length > 0 ? (
-        auditLogs.map((log, index) => (
-          <View key={log.id || index} style={styles.timelineItem}>
-            <View style={styles.timelineLeft}>
-              <View
-                style={[
-                  styles.timelineDot,
-                  { backgroundColor: getActionColor(log.action) },
-                ]}
-              />
-              {index < auditLogs.length - 1 ? <View style={styles.timelineLine} /> : null}
-            </View>
+      {loading && !refreshing ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.saffron500} />
+          <Text style={styles.loadingText}>Loading cryptographic audit events...</Text>
+        </View>
+      ) : auditLogs.length > 0 ? (
+        <View style={styles.timelineWrapper}>
+          {auditLogs.map((log, index) => {
+            const meta = getActionMeta(log.action);
+            const isLast = index === auditLogs.length - 1;
 
-            <Card style={styles.timelineCard}>
-              <View style={styles.logHeader}>
-                <View
-                  style={[
-                    styles.actionBadge,
-                    { backgroundColor: `${getActionColor(log.action)}15` },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.actionText,
-                      { color: getActionColor(log.action) },
-                    ]}
-                  >
-                    {(log.action || 'EVENT').toUpperCase()}
-                  </Text>
+            return (
+              <View key={log.id || index} style={styles.timelineItem}>
+                <View style={styles.timelineLeft}>
+                  <View style={[styles.timelineNode, { backgroundColor: meta.bg, borderColor: meta.color }]}>
+                    <Ionicons name={meta.icon} size={14} color={meta.color} />
+                  </View>
+                  {!isLast && <View style={styles.timelineConnector} />}
                 </View>
-                <Text style={styles.logTime}>
-                  {log.created_at || log.timestamp
-                    ? new Date(log.created_at || log.timestamp).toLocaleString()
-                    : 'Recent'}
-                </Text>
+
+                <Card style={styles.timelineCard}>
+                  <View style={styles.logTopRow}>
+                    <View style={[styles.actionBadge, { backgroundColor: meta.bg }]}>
+                      <Text style={[styles.actionBadgeText, { color: meta.color }]}>
+                        {meta.label}
+                      </Text>
+                    </View>
+                    <Text style={styles.logTimestamp}>
+                      {log.created_at || log.timestamp
+                        ? new Date(log.created_at || log.timestamp).toLocaleString()
+                        : 'Recent'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.logUserRow}>
+                    <Ionicons name="person-outline" size={12} color={colors.slate500} />
+                    <Text style={styles.logUserText}>
+                      Performed by: <Text style={{ fontWeight: '700', color: colors.govNavy900 }}>
+                        {log.user?.full_name || log.user?.username || log.performed_by || 'System Pipeline'}
+                      </Text>
+                    </Text>
+                  </View>
+
+                  {/* Clean Formatted Details */}
+                  {log.details ? (
+                    <View style={styles.detailsContainer}>
+                      {typeof log.details === 'object' ? (
+                        Object.entries(log.details).map(([k, v]) => (
+                          <View key={k} style={styles.detailRow}>
+                            <Text style={styles.detailKey}>{k}:</Text>
+                            <Text style={styles.detailVal}>
+                              {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                            </Text>
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={styles.detailRawText}>{String(log.details)}</Text>
+                      )}
+                    </View>
+                  ) : null}
+                </Card>
               </View>
-
-              <Text style={styles.logUser}>
-                👤 Performed by: {log.user?.full_name || log.user?.username || log.performed_by || 'System Pipeline'}
-                {log.user?.role ? ` (${log.user.role})` : ''}
-              </Text>
-
-              {log.details || log.description ? (
-                <View style={styles.detailsBox}>
-                  <Text style={styles.detailsText}>
-                    {typeof log.details === 'object'
-                      ? JSON.stringify(log.details, null, 2)
-                      : log.details || log.description}
-                  </Text>
-                </View>
-              ) : null}
-            </Card>
-          </View>
-        ))
+            );
+          })}
+        </View>
       ) : (
         <Card style={styles.emptyCard}>
-          <Text style={styles.emptyText}>No audit entries recorded for this document.</Text>
+          <Ionicons name="shield-outline" size={36} color={colors.slate300} />
+          <Text style={styles.emptyTitle}>No audit events for this record</Text>
+          <Text style={styles.emptySub}>Actions performed on this document will appear here</Text>
         </Card>
       )}
 
-      <Button
-        title="Back to Document Review"
-        onPress={() => navigation.navigate('Review', { documentId })}
-        variant="outline"
-        style={{ marginTop: spacing.md }}
-      />
+      {selectedDocId && (
+        <Button
+          title="Inspect & Verify Document Fields"
+          onPress={() => navigation.navigate('Review', { documentId: selectedDocId })}
+          variant="saffron"
+          style={{ marginTop: spacing.lg }}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -196,132 +270,232 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    paddingVertical: 40,
     alignItems: 'center',
-    backgroundColor: colors.bgPage,
-    padding: spacing.xl,
+    justifyContent: 'center',
   },
   loadingText: {
-    marginTop: spacing.md,
+    marginTop: 10,
+    fontSize: 12,
     color: colors.slate600,
-    fontSize: typography.sizes.sm,
+    fontWeight: '600',
   },
   headerCard: {
-    padding: spacing.lg,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderColor: colors.borderCard,
+    borderWidth: 1,
     marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  sealIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.govNavy950,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.saffron500,
   },
   headerTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
-    color: colors.govNavy900,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.govNavy950,
   },
   headerSub: {
-    fontSize: typography.sizes.xs,
+    fontSize: 11,
     color: colors.slate500,
     marginTop: 2,
   },
   hashBox: {
-    marginTop: spacing.md,
-    padding: spacing.sm,
-    backgroundColor: colors.slate950,
+    backgroundColor: colors.slate50,
     borderRadius: radius.sm,
+    padding: 10,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+  },
+  hashHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 3,
   },
   hashLabel: {
-    color: colors.saffron500,
-    fontSize: 10,
-    fontWeight: typography.weights.bold,
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: colors.saffron700,
+    letterSpacing: 0.5,
   },
   hashValue: {
-    fontFamily: typography.fontFamily.mono,
-    color: colors.slate200,
+    fontSize: 10.5,
+    color: colors.slate700,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    lineHeight: 14,
+  },
+  selectorSection: {
+    marginBottom: spacing.md,
+  },
+  selectorTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.slate500,
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+  docPillList: {
+    gap: 6,
+  },
+  docPill: {
+    backgroundColor: colors.white,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.borderCard,
+  },
+  docPillActive: {
+    backgroundColor: colors.govNavy900,
+    borderColor: colors.govNavy900,
+  },
+  docPillText: {
     fontSize: 11,
-    marginTop: 2,
+    fontWeight: '600',
+    color: colors.slate700,
   },
-  errorCard: {
-    backgroundColor: colors.rose50,
-    borderColor: colors.rose600,
+  docPillTextActive: {
+    color: colors.white,
+    fontWeight: '700',
   },
-  errorText: {
-    color: colors.rose800,
-    fontSize: typography.sizes.sm,
+  timelineHeader: {
+    marginBottom: spacing.sm,
+    paddingHorizontal: 2,
   },
-  sectionHeader: {
-    marginBottom: spacing.xs,
+  timelineTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.govNavy950,
   },
-  sectionTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.govNavy900,
+  timelineSub: {
+    fontSize: 11,
+    color: colors.slate500,
+    marginTop: 1,
+  },
+  timelineWrapper: {
+    paddingTop: 4,
   },
   timelineItem: {
     flexDirection: 'row',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
   timelineLeft: {
-    width: 24,
     alignItems: 'center',
-    paddingTop: 16,
+    width: 32,
+    marginRight: 8,
   },
-  timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  timelineNode: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
   },
-  timelineLine: {
-    flex: 1,
+  timelineConnector: {
     width: 2,
-    backgroundColor: colors.slate300,
-    marginTop: 4,
+    flex: 1,
+    backgroundColor: colors.slate200,
+    marginVertical: 4,
   },
   timelineCard: {
     flex: 1,
-    marginLeft: spacing.xs,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
     padding: spacing.md,
+    borderColor: colors.borderCard,
+    borderWidth: 1,
+    ...shadows.sm,
   },
-  logHeader: {
+  logTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: 6,
   },
   actionBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: radius.sm,
-  },
-  actionText: {
-    fontSize: 10,
-    fontWeight: typography.weights.bold,
-    letterSpacing: 0.5,
-  },
-  logTime: {
-    fontSize: 10,
-    color: colors.slate500,
-  },
-  logUser: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.semibold,
-    color: colors.slate700,
-    marginBottom: spacing.xs,
-  },
-  detailsBox: {
-    backgroundColor: colors.slate100,
     borderRadius: radius.xs,
-    padding: spacing.sm,
-    marginTop: spacing.xs,
   },
-  detailsText: {
-    fontFamily: typography.fontFamily.mono,
+  actionBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  logTimestamp: {
+    fontSize: 10,
+    color: colors.slate400,
+  },
+  logUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  logUserText: {
     fontSize: 11,
-    color: colors.slate800,
+    color: colors.slate600,
+  },
+  detailsContainer: {
+    backgroundColor: colors.slate50,
+    borderRadius: radius.xs,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: colors.slate100,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 2,
+  },
+  detailKey: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: colors.slate600,
+    width: 100,
+  },
+  detailVal: {
+    fontSize: 10.5,
+    color: colors.govNavy900,
+    flex: 1,
+    fontWeight: '500',
+  },
+  detailRawText: {
+    fontSize: 10.5,
+    color: colors.slate700,
   },
   emptyCard: {
     alignItems: 'center',
-    padding: spacing.xl,
+    justifyContent: 'center',
+    paddingVertical: 30,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
   },
-  emptyText: {
-    color: colors.slate500,
-    fontSize: typography.sizes.sm,
+  emptyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.slate600,
+    marginTop: 8,
+  },
+  emptySub: {
+    fontSize: 11,
+    color: colors.slate400,
+    marginTop: 2,
   },
 });
