@@ -6,7 +6,8 @@ import { IconSearch, IconUpload, IconShield, IconRefresh } from '../common/Icons
 
 export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUpdate }) {
   const { t } = useTranslation();
-  const { isFieldOfficer } = useAuth();
+  const { user, isVerifier, isFieldOfficer, isAdmin } = useAuth();
+
 
   const [documents, setDocuments] = useState([]);
   const [total, setTotal] = useState(0);
@@ -215,19 +216,49 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
                         <td>{jurisdiction}</td>
                         <td style={{ color: 'var(--slate-600)', fontSize: 12 }}>{uploadDate}</td>
                         <td>
-                          <span className={`badge badge-${doc.status}`}>
-                            <span className={`status-dot status-dot-${doc.status}`} />
-                            {t(`registry.status.${doc.status}`) || doc.status.replace('_', ' ')}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span className={`badge badge-${doc.status}`}>
+                              <span className={`status-dot status-dot-${doc.status}`} />
+                              {t(`registry.status.${doc.status}`) || doc.status.replace('_', ' ')}
+                            </span>
+                            {doc.assigned_verifier_id === user?.id ? (
+                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#dcfce7', color: '#166534', fontWeight: 700 }}>
+                                Assigned to You
+                              </span>
+                            ) : !doc.assigned_verifier_id ? (
+                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#fef3c7', color: '#92400e', fontWeight: 600 }}>
+                                Shared Pool
+                              </span>
+                            ) : null}
+                          </div>
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          <button
-                            className="btn btn-outline btn-sm"
-                            onClick={() => onSelectDoc(doc.id)}
-                          >
-                            <IconShield size={12} />
-                            {doc.status === 'verified' ? t('registry.actions.view') : t('registry.actions.verify')}
-                          </button>
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            {isVerifier && !doc.assigned_verifier_id && doc.status !== 'verified' && (
+                              <button
+                                className="btn btn-primary btn-sm"
+                                style={{ fontSize: 11, padding: '3px 8px' }}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await documentsApi.claim(doc.id);
+                                    fetchDocuments(page);
+                                  } catch (err) {
+                                    alert(err.message || 'Failed to claim document');
+                                  }
+                                }}
+                              >
+                                Claim
+                              </button>
+                            )}
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => onSelectDoc(doc.id)}
+                            >
+                              <IconShield size={12} />
+                              {doc.status === 'verified' ? t('registry.actions.view') : t('registry.actions.verify')}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -237,6 +268,7 @@ export default function Registry({ onSelectDoc, onNavigateToUpload, onDocCountUp
             </table>
           </div>
         )}
+
 
         {/* Pagination Bar */}
         <div

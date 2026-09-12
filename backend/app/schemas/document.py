@@ -79,6 +79,11 @@ class DocumentRead(_DocumentBase):
     has_suspected_duplicates: bool = False
     duplicate_count:          int = 0
     document_id:              int | None = None
+    assigned_verifier_id:     int | None = None
+    claimed_at:               datetime | None = None
+    is_escalated:             bool = False
+    escalation_reason:        str | None = None
+    assigned_verifier_username: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -87,6 +92,7 @@ class DocumentRead(_DocumentBase):
         if self.document_id is None:
             self.document_id = self.id
         return self
+
 
 
 class DocumentDetail(DocumentRead):

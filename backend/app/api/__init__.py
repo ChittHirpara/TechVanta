@@ -6,6 +6,7 @@ from app.api.documents import router as documents_router
 from app.api.dashboard import router as dashboard_router
 from app.api.integrations import router as integrations_router
 from app.api.demo import router as demo_router
+from app.api.jurisdictions import router as jurisdictions_router
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth_router)
@@ -13,6 +14,7 @@ api_router.include_router(documents_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(integrations_router)
 api_router.include_router(demo_router)
+api_router.include_router(jurisdictions_router)
 
 # Legacy / direct root router without /api/v1 prefix for mobile & direct API consumers
 legacy_router = APIRouter()
@@ -21,4 +23,6 @@ legacy_router.include_router(documents_router)
 legacy_router.include_router(dashboard_router)
 legacy_router.include_router(integrations_router)
 legacy_router.include_router(demo_router)
+legacy_router.include_router(jurisdictions_router)
+
 

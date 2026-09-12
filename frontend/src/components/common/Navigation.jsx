@@ -1,9 +1,11 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { IconDashboard, IconFolder, IconUpload, IconShield } from './Icons';
+import { useAuth } from '../../context/AuthContext';
+import { IconDashboard, IconFolder, IconUpload, IconShield, IconAlert } from './Icons';
 
 export default function Navigation({ activeTab, onTabChange, docCount, currentDocId }) {
   const { t } = useTranslation();
+  const { isAdmin } = useAuth();
 
   return (
     <nav className="portal-nav">
@@ -23,6 +25,26 @@ export default function Navigation({ activeTab, onTabChange, docCount, currentDo
         {t('nav.registry')}
         <span className="nav-count-badge">{docCount || 0}</span>
       </button>
+
+      {isAdmin && (
+        <>
+          <button
+            className={`nav-tab-btn ${activeTab === 'escalations' ? 'active' : ''}`}
+            onClick={() => onTabChange('escalations')}
+          >
+            <IconAlert size={15} className="text-rose-600" />
+            Escalations
+          </button>
+
+          <button
+            className={`nav-tab-btn ${activeTab === 'jurisdictions' ? 'active' : ''}`}
+            onClick={() => onTabChange('jurisdictions')}
+          >
+            <IconShield size={15} />
+            Jurisdictions
+          </button>
+        </>
+      )}
 
       <button
         className={`nav-tab-btn ${activeTab === 'upload' ? 'active' : ''}`}
@@ -44,3 +66,4 @@ export default function Navigation({ activeTab, onTabChange, docCount, currentDo
     </nav>
   );
 }
+

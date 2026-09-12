@@ -646,6 +646,8 @@ async def process_document(
 
             # ── Update geography fields on Document if extracted ───────────────
             from app.models.document import Document
+            from app.services.jurisdiction_service import route_document
+
             geo_updates: dict[str, str | None] = {}
             for geo in ("district", "tehsil", "village"):
                 val = extracted_values.get(geo)
@@ -659,6 +661,18 @@ async def process_document(
                     .where(Document.id == document_id)
                     .values(**geo_updates)
                 )
+
+            # Re-check jurisdiction routing if document is unassigned or escalated as unassigned
+            if doc.assigned_verifier_id is None:
+                # Apply the extracted geo values to the in-memory doc for routing evaluation
+                for k, v in geo_updates.items():
+                    setattr(doc, k, v)
+                await route_document(session, doc)
+
+            # If high risk or fraud severity detected, flag for admin escalation
+            if risk_level == "HIGH" or (risk_score is not None and risk_score >= 80):
+                doc.is_escalated = True
+                doc.escalation_reason = "HIGH_RISK_FRAUD"
 
             await session.commit()
             step.detail = f"saved={fields_saved} deleted_old=yes geo_updated={bool(geo_updates)}"
@@ -698,11 +712,14 @@ async def process_document(
                     "risk_level": risk_level,
                     "risk_applicable": risk_applicable,
                     "risk_mismatches": risk_mismatches,
+                    "is_escalated": doc.is_escalated,
+                    "escalation_reason": doc.escalation_reason,
                     "ocr_avg_confidence": ocr_avg_conf,
                     "total_duration_s": round(time.perf_counter() - wall_start, 3),
                 },
             )
             await session.commit()
+
             step.detail = f"status={final_status}"
             await pipeline_broadcaster.broadcast(document_id, {
                 "event": "complete",

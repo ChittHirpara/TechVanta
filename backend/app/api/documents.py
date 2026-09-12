@@ -229,6 +229,10 @@ async def upload_document(
     db.add(doc)
     await db.flush()
 
+    # Apply initial jurisdiction routing logic
+    from app.services.jurisdiction_service import route_document
+    await route_document(db, doc)
+
     audit_details = {"filename": doc.filename}
     if client_capture_id:
         audit_details["client_capture_id"] = client_capture_id
@@ -242,6 +246,7 @@ async def upload_document(
     )
     await db.commit()
     await db.refresh(doc)
+
 
     # Pipeline owns its own DB session (request session closes after response)
     background_tasks.add_task(
@@ -260,7 +265,7 @@ async def upload_document(
 
 @router.get(
     "/notifications",
-    summary="Get recent status notifications for field officer's uploaded documents",
+    summary="Get role-scoped status notifications and escalation alerts",
 )
 async def get_document_notifications(
     limit: int = Query(20, ge=1, le=100),
@@ -268,15 +273,59 @@ async def get_document_notifications(
     current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
     """
-    Returns a list of status transition events (verified, needs_review, processing)
-    for documents uploaded by the current field officer.
+    Returns role-scoped notifications:
+    - field_officer: Status transitions for their own uploaded documents.
+    - verifier: Notifications for documents assigned to them or available in their jurisdiction pool.
+    - admin: ESCALATION ALERTS ONLY (SLA breaches, fraud risk, unassigned jurisdiction). Zero routine noise.
     """
+    from app.services.jurisdiction_service import build_verifier_document_filter, get_escalations_summary
+
+    notifications: list[dict[str, Any]] = []
+
+    # 1. Admin: Only escalation exceptions (zero routine noise)
+    if current_user.role == UserRole.admin:
+        escalations = await get_escalations_summary(db)
+        for doc in escalations["unassigned_documents"][:limit]:
+            notifications.append({
+                "id": f"notif_unassigned_{doc.id}",
+                "document_id": doc.id,
+                "title": f"Unassigned Jurisdiction: #{doc.id}",
+                "message": f"Land record '{doc.filename}' ({doc.district or 'No District'}) has no assigned verifier.",
+                "type": "error",
+                "status": doc.status.value,
+                "timestamp": doc.created_at.isoformat() if doc.created_at else datetime.now(timezone.utc).isoformat(),
+            })
+        for doc in escalations["fraud_risk_documents"][:limit]:
+            notifications.append({
+                "id": f"notif_fraud_{doc.id}",
+                "document_id": doc.id,
+                "title": f"High Fraud Risk: #{doc.id}",
+                "message": f"Document '{doc.filename}' flagged for high discrepancy / fraud severity.",
+                "type": "error",
+                "status": doc.status.value,
+                "timestamp": doc.updated_at.isoformat() if doc.updated_at else datetime.now(timezone.utc).isoformat(),
+            })
+        for doc in escalations["sla_breached_documents"][:limit]:
+            notifications.append({
+                "id": f"notif_sla_{doc.id}",
+                "document_id": doc.id,
+                "title": f"SLA Breach Escalation: #{doc.id}",
+                "message": f"Document '{doc.filename}' unverified past SLA threshold.",
+                "type": "warning",
+                "status": doc.status.value,
+                "timestamp": doc.created_at.isoformat() if doc.created_at else datetime.now(timezone.utc).isoformat(),
+            })
+        return notifications[:limit]
+
+    # 2. Field Officer & Verifier
     stmt = select(Document).order_by(Document.updated_at.desc()).limit(limit)
     if current_user.role == UserRole.field_officer:
         stmt = stmt.where(Document.uploaded_by == current_user.id)
+    elif current_user.role == UserRole.verifier:
+        verifier_filter = await build_verifier_document_filter(db, current_user.id)
+        stmt = stmt.where(verifier_filter)
 
     docs = (await db.execute(stmt)).scalars().all()
-    notifications = []
     for doc in docs:
         if doc.status == DocumentStatus.verified:
             notifications.append({
@@ -293,7 +342,7 @@ async def get_document_notifications(
                 "id": f"notif_review_{doc.id}",
                 "document_id": doc.id,
                 "title": f"Document #{doc.id} Requires Review",
-                "message": f"Land record '{doc.filename}' has flagged attributes under verifier review.",
+                "message": f"Land record '{doc.filename}' has flagged attributes in your jurisdiction queue.",
                 "type": "warning",
                 "status": doc.status.value,
                 "timestamp": doc.updated_at.isoformat() if doc.updated_at else datetime.now(timezone.utc).isoformat(),
@@ -309,6 +358,7 @@ async def get_document_notifications(
                 "timestamp": doc.created_at.isoformat() if doc.created_at else datetime.now(timezone.utc).isoformat(),
             })
     return notifications
+
 
 
 
@@ -439,23 +489,52 @@ async def get_document(
 @router.get(
     "",
     response_model=PaginatedDocuments,
-    summary="Paginated, filtered document list",
+    summary="Paginated, filtered document list with jurisdiction scoping",
 )
 async def list_documents(
-    status:    DocumentStatus | None = Query(None, description="Filter by processing status"),
-    district:  str | None            = Query(None, description="Filter by district name"),
-    page:      int                   = Query(1, ge=1, description="Page number (1-based)"),
-    page_size: int                   = Query(20, ge=1, le=100, description="Items per page"),
+    status:          DocumentStatus | None = Query(None, description="Filter by processing status"),
+    district:        str | None            = Query(None, description="Filter by district name"),
+    search:          str | None            = Query(None, description="Filter by filename or geography"),
+    assigned_to_me:  bool | None           = Query(None, description="Filter documents assigned to caller"),
+    unassigned_only: bool | None           = Query(None, description="Filter unassigned shared pool documents"),
+    is_escalated:    bool | None           = Query(None, description="Filter escalated documents"),
+    page:            int                   = Query(1, ge=1, description="Page number (1-based)"),
+    page_size:       int                   = Query(20, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PaginatedDocuments:
+    from app.services.jurisdiction_service import build_verifier_document_filter
+
     base = select(Document)
+
+    # 1. Role-based scoping
     if current_user.role == UserRole.field_officer:
         base = base.where(Document.uploaded_by == current_user.id)
+    elif current_user.role == UserRole.verifier:
+        verifier_filter = await build_verifier_document_filter(db, current_user.id)
+        base = base.where(verifier_filter)
+
+    # 2. Additive query filters
     if status:
         base = base.where(Document.status == status)
     if district:
         base = base.where(Document.district.ilike(f"%{district}%"))
+    if search:
+        s_term = f"%{search.strip()}%"
+        base = base.where(
+            or_(
+                Document.filename.ilike(s_term),
+                Document.district.ilike(s_term),
+                Document.tehsil.ilike(s_term),
+                Document.village.ilike(s_term),
+            )
+        )
+    if assigned_to_me:
+        base = base.where(Document.assigned_verifier_id == current_user.id)
+    if unassigned_only:
+        base = base.where(Document.assigned_verifier_id.is_(None))
+    if is_escalated is not None:
+        base = base.where(Document.is_escalated == is_escalated)
 
     # Total count
     count_stmt = select(func.count()).select_from(base.subquery())
@@ -477,6 +556,32 @@ async def list_documents(
         page_size=page_size,
         items=[DocumentRead.model_validate(r) for r in rows],
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /documents/{id}/claim
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post(
+    "/{document_id}/claim",
+    response_model=DocumentRead,
+    summary="Claim ownership of a document from a shared pool (verifier / admin)",
+)
+async def claim_document_endpoint(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.admin, UserRole.verifier)),
+) -> DocumentRead:
+    """
+    Claims an unassigned document from the verifier's jurisdiction pool.
+    Prevents race conditions / duplicate reviews by raising 409 Conflict if already claimed.
+    """
+    doc = await _get_doc_or_404(document_id, db)
+    require_document_access(doc, current_user)
+    from app.services.jurisdiction_service import claim_document
+    claimed = await claim_document(db, doc, current_user)
+    return DocumentRead.model_validate(claimed)
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────

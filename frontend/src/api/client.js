@@ -136,6 +136,10 @@ export const documentsApi = {
     apiClient(`/documents/${id}/verify`, {
       method: 'POST',
     }),
+  claim: (id) =>
+    apiClient(`/documents/${id}/claim`, {
+      method: 'POST',
+    }),
   reprocess: (id) =>
     apiClient(`/documents/${id}/reprocess`, {
       method: 'POST',
@@ -162,6 +166,30 @@ export const documentsApi = {
     `${API_BASE}/documents/${id}/certificate?token=${encodeURIComponent(token || getStoredToken() || '')}`,
 };
 
+export const jurisdictionsApi = {
+  list: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.user_id) query.append('user_id', params.user_id);
+    if (params.district) query.append('district', params.district);
+    return apiClient(`/jurisdictions?${query.toString()}`);
+  },
+  create: (payload) =>
+    apiClient('/jurisdictions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  delete: (id) =>
+    apiClient(`/jurisdictions/${id}`, {
+      method: 'DELETE',
+    }),
+  getVerifiers: () => apiClient('/jurisdictions/verifiers'),
+  getEscalations: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.sla_hours) query.append('sla_hours', params.sla_hours);
+    return apiClient(`/jurisdictions/escalations?${query.toString()}`);
+  },
+};
+
 export const integrationsApi = {
   pushLrms: (id) =>
     apiClient(`/integrations/lrms/push/${id}`, {
@@ -172,6 +200,7 @@ export const integrationsApi = {
       method: 'POST',
     }),
 };
+
 
 /**
  * Connect to SSE EventSource for real-time document extraction pipeline updates
