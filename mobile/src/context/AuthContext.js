@@ -41,6 +41,13 @@ export function AuthProvider({ children }) {
             } catch (err) {
               if (err.message && (err.message.includes('Authentication required') || err.message.includes('Session expired'))) {
                 await logout();
+              } else {
+                // Offline fallback: restore cached user profile so field officer stays logged in offline
+                const cachedUser = await getStoredUser();
+                if (cachedUser) {
+                  setToken(existingToken);
+                  setUser(cachedUser);
+                }
               }
             }
           }

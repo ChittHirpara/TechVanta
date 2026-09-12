@@ -24,9 +24,9 @@ export default function ReviewScreen({ route, navigation }) {
   const fetchDocument = useCallback(async () => {
     if (!documentId) return;
     try {
-      setError(null);
       const data = await documentsApi.get(documentId);
       setDocument(data);
+      setError(null);
     } catch (err) {
       setError(err.message || 'Failed to load document details.');
     } finally {

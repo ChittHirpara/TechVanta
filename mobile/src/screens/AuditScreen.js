@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { documentsApi } from '../api/client';
 import Card from '../components/common/Card';
-import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import { colors, radius, typography, spacing } from '../theme/theme';
 
@@ -26,12 +25,12 @@ export default function AuditScreen({ route, navigation }) {
   const fetchAuditData = useCallback(async () => {
     if (!documentId) return;
     try {
-      setError(null);
       const [docData, auditData, integrityData] = await Promise.all([
         documentsApi.get(documentId).catch(() => null),
         documentsApi.getAudit(documentId).catch(() => []),
         documentsApi.getIntegrity(documentId).catch(() => null),
       ]);
+      setError(null);
 
       setDocument(docData);
       setAuditLogs(auditData || []);

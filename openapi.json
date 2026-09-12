@@ -123,7 +123,7 @@
           "Documents"
         ],
         "summary": "Upload a land-record document and start async OCR + extraction",
-        "description": "Saves the file, creates a ``Document`` row with ``status=processing``,\nenqueues the full OCR\u2192extraction\u2192validation pipeline as a BackgroundTask,\nand returns the ``document_id`` immediately.\n\nPoll ``GET /documents/{id}`` to watch:\n``processing \u2192 needs_review | verified``",
+        "description": "Saves the file, creates a ``Document`` row with ``status=processing``,\nenqueues the full OCR\u2192extraction\u2192validation pipeline as a BackgroundTask,\nand returns the ``document_id`` immediately.\n\nIf client_capture_id is provided and was already uploaded, returns existing document (idempotency).\n\nPoll ``GET /documents/{id}`` to watch:\n``processing \u2192 needs_review | verified``",
         "operationId": "upload_document_api_v1_documents_upload_post",
         "requestBody": {
           "content": {
@@ -162,6 +162,62 @@
             "OAuth2PasswordBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/documents/notifications": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Get role-scoped status notifications and escalation alerts",
+        "description": "Returns role-scoped notifications:\n- field_officer: Status transitions for their own uploaded documents.\n- verifier: Notifications for documents assigned to them or available in their jurisdiction pool.\n- admin: ESCALATION ALERTS ONLY (SLA breaches, fraud risk, unassigned jurisdiction). Zero routine noise.",
+        "operationId": "get_document_notifications_api_v1_documents_notifications_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get Document Notifications Api V1 Documents Notifications Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/documents/public/verify/{ulpin}/{file_hash}": {
@@ -267,7 +323,7 @@
         "tags": [
           "Documents"
         ],
-        "summary": "Paginated, filtered document list",
+        "summary": "Paginated, filtered document list with jurisdiction scoping",
         "operationId": "list_documents_api_v1_documents_get",
         "security": [
           {
@@ -312,6 +368,78 @@
             "description": "Filter by district name"
           },
           {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by filename or geography",
+              "title": "Search"
+            },
+            "description": "Filter by filename or geography"
+          },
+          {
+            "name": "assigned_to_me",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter documents assigned to caller",
+              "title": "Assigned To Me"
+            },
+            "description": "Filter documents assigned to caller"
+          },
+          {
+            "name": "unassigned_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter unassigned shared pool documents",
+              "title": "Unassigned Only"
+            },
+            "description": "Filter unassigned shared pool documents"
+          },
+          {
+            "name": "is_escalated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter escalated documents",
+              "title": "Is Escalated"
+            },
+            "description": "Filter escalated documents"
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -346,6 +474,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaginatedDocuments"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/claim": {
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Claim ownership of a document from a shared pool (verifier / admin)",
+        "description": "Claims an unassigned document from the verifier's jurisdiction pool.\nPrevents race conditions / duplicate reviews by raising 409 Conflict if already claimed.",
+        "operationId": "claim_document_endpoint_api_v1_documents__document_id__claim_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRead"
                 }
               }
             }
@@ -1115,6 +1291,254 @@
         }
       }
     },
+    "/api/v1/jurisdictions": {
+      "get": {
+        "tags": [
+          "Jurisdictions"
+        ],
+        "summary": "List all verifier-to-jurisdiction assignments (Admin only)",
+        "operationId": "list_jurisdictions_api_v1_jurisdictions_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by specific verifier user ID",
+              "title": "User Id"
+            },
+            "description": "Filter by specific verifier user ID"
+          },
+          {
+            "name": "district",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by district name",
+              "title": "District"
+            },
+            "description": "Filter by district name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VerifierJurisdictionRead"
+                  },
+                  "title": "Response List Jurisdictions Api V1 Jurisdictions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Jurisdictions"
+        ],
+        "summary": "Assign a verifier to a jurisdiction (Admin only)",
+        "operationId": "create_jurisdiction_assignment_api_v1_jurisdictions_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifierJurisdictionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifierJurisdictionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jurisdictions/{jurisdiction_id}": {
+      "delete": {
+        "tags": [
+          "Jurisdictions"
+        ],
+        "summary": "Delete a verifier-to-jurisdiction assignment (Admin only)",
+        "operationId": "delete_jurisdiction_assignment_api_v1_jurisdictions__jurisdiction_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "jurisdiction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Jurisdiction Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jurisdictions/verifiers": {
+      "get": {
+        "tags": [
+          "Jurisdictions"
+        ],
+        "summary": "List all verifiers and their assignment counts (Admin only)",
+        "operationId": "list_verifier_users_api_v1_jurisdictions_verifiers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VerifierUserSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Verifier Users Api V1 Jurisdictions Verifiers Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/jurisdictions/escalations": {
+      "get": {
+        "tags": [
+          "Jurisdictions"
+        ],
+        "summary": "Fetch all categorized admin escalations: SLA breach, fraud risk, unassigned (Admin only)",
+        "operationId": "list_admin_escalations_api_v1_jurisdictions_escalations_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sla_hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Override SLA hours",
+              "title": "Sla Hours"
+            },
+            "description": "Override SLA hours"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalationsSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/register": {
       "post": {
         "tags": [
@@ -1232,7 +1656,7 @@
           "Documents"
         ],
         "summary": "Upload a land-record document and start async OCR + extraction",
-        "description": "Saves the file, creates a ``Document`` row with ``status=processing``,\nenqueues the full OCR\u2192extraction\u2192validation pipeline as a BackgroundTask,\nand returns the ``document_id`` immediately.\n\nPoll ``GET /documents/{id}`` to watch:\n``processing \u2192 needs_review | verified``",
+        "description": "Saves the file, creates a ``Document`` row with ``status=processing``,\nenqueues the full OCR\u2192extraction\u2192validation pipeline as a BackgroundTask,\nand returns the ``document_id`` immediately.\n\nIf client_capture_id is provided and was already uploaded, returns existing document (idempotency).\n\nPoll ``GET /documents/{id}`` to watch:\n``processing \u2192 needs_review | verified``",
         "operationId": "upload_document_documents_upload_post",
         "requestBody": {
           "content": {
@@ -1271,6 +1695,62 @@
             "OAuth2PasswordBearer": []
           }
         ]
+      }
+    },
+    "/documents/notifications": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Get role-scoped status notifications and escalation alerts",
+        "description": "Returns role-scoped notifications:\n- field_officer: Status transitions for their own uploaded documents.\n- verifier: Notifications for documents assigned to them or available in their jurisdiction pool.\n- admin: ESCALATION ALERTS ONLY (SLA breaches, fraud risk, unassigned jurisdiction). Zero routine noise.",
+        "operationId": "get_document_notifications_documents_notifications_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get Document Notifications Documents Notifications Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/documents/public/verify/{ulpin}/{file_hash}": {
@@ -1376,7 +1856,7 @@
         "tags": [
           "Documents"
         ],
-        "summary": "Paginated, filtered document list",
+        "summary": "Paginated, filtered document list with jurisdiction scoping",
         "operationId": "list_documents_documents_get",
         "security": [
           {
@@ -1421,6 +1901,78 @@
             "description": "Filter by district name"
           },
           {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by filename or geography",
+              "title": "Search"
+            },
+            "description": "Filter by filename or geography"
+          },
+          {
+            "name": "assigned_to_me",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter documents assigned to caller",
+              "title": "Assigned To Me"
+            },
+            "description": "Filter documents assigned to caller"
+          },
+          {
+            "name": "unassigned_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter unassigned shared pool documents",
+              "title": "Unassigned Only"
+            },
+            "description": "Filter unassigned shared pool documents"
+          },
+          {
+            "name": "is_escalated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter escalated documents",
+              "title": "Is Escalated"
+            },
+            "description": "Filter escalated documents"
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -1455,6 +2007,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PaginatedDocuments"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{document_id}/claim": {
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Claim ownership of a document from a shared pool (verifier / admin)",
+        "description": "Claims an unassigned document from the verifier's jurisdiction pool.\nPrevents race conditions / duplicate reviews by raising 409 Conflict if already claimed.",
+        "operationId": "claim_document_endpoint_documents__document_id__claim_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRead"
                 }
               }
             }
@@ -2224,6 +2824,254 @@
         }
       }
     },
+    "/jurisdictions": {
+      "get": {
+        "tags": [
+          "Jurisdictions"
+        ],
+        "summary": "List all verifier-to-jurisdiction assignments (Admin only)",
+        "operationId": "list_jurisdictions_jurisdictions_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by specific verifier user ID",
+              "title": "User Id"
+            },
+            "description": "Filter by specific verifier user ID"
+          },
+          {
+            "name": "district",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by district name",
+              "title": "District"
+            },
+            "description": "Filter by district name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VerifierJurisdictionRead"
+                  },
+                  "title": "Response List Jurisdictions Jurisdictions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Jurisdictions"
+        ],
+        "summary": "Assign a verifier to a jurisdiction (Admin only)",
+        "operationId": "create_jurisdiction_assignment_jurisdictions_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifierJurisdictionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifierJurisdictionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jurisdictions/{jurisdiction_id}": {
+      "delete": {
+        "tags": [
+          "Jurisdictions"
+        ],
+        "summary": "Delete a verifier-to-jurisdiction assignment (Admin only)",
+        "operationId": "delete_jurisdiction_assignment_jurisdictions__jurisdiction_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "jurisdiction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Jurisdiction Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jurisdictions/verifiers": {
+      "get": {
+        "tags": [
+          "Jurisdictions"
+        ],
+        "summary": "List all verifiers and their assignment counts (Admin only)",
+        "operationId": "list_verifier_users_jurisdictions_verifiers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VerifierUserSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Verifier Users Jurisdictions Verifiers Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/jurisdictions/escalations": {
+      "get": {
+        "tags": [
+          "Jurisdictions"
+        ],
+        "summary": "Fetch all categorized admin escalations: SLA breach, fraud risk, unassigned (Admin only)",
+        "operationId": "list_admin_escalations_jurisdictions_escalations_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sla_hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Override SLA hours",
+              "title": "Sla Hours"
+            },
+            "description": "Override SLA hours"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalationsSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -2315,6 +3163,17 @@
               }
             ],
             "title": "Village"
+          },
+          "client_capture_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Capture Id"
           }
         },
         "type": "object",
@@ -2363,6 +3222,17 @@
               }
             ],
             "title": "Village"
+          },
+          "client_capture_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Capture Id"
           }
         },
         "type": "object",
@@ -2590,6 +3460,56 @@
             ],
             "title": "Document Id"
           },
+          "assigned_verifier_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Verifier Id"
+          },
+          "claimed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claimed At"
+          },
+          "is_escalated": {
+            "type": "boolean",
+            "title": "Is Escalated",
+            "default": false
+          },
+          "escalation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Reason"
+          },
+          "assigned_verifier_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Verifier Username"
+          },
           "extracted_fields": {
             "items": {
               "$ref": "#/components/schemas/ExtractedFieldRead"
@@ -2608,6 +3528,30 @@
               }
             ],
             "title": "Top Duplicate Score"
+          },
+          "comparison": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison"
+          },
+          "risk": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk"
           }
         },
         "type": "object",
@@ -2621,7 +3565,7 @@
           "updated_at"
         ],
         "title": "DocumentDetail",
-        "description": "Full document detail \u2013 includes extracted fields."
+        "description": "Full document detail \u2013 includes extracted fields + reference comparison."
       },
       "DocumentRead": {
         "properties": {
@@ -2718,6 +3662,56 @@
               }
             ],
             "title": "Document Id"
+          },
+          "assigned_verifier_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Verifier Id"
+          },
+          "claimed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claimed At"
+          },
+          "is_escalated": {
+            "type": "boolean",
+            "title": "Is Escalated",
+            "default": false
+          },
+          "escalation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Reason"
+          },
+          "assigned_verifier_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Verifier Username"
           }
         },
         "type": "object",
@@ -2742,6 +3736,58 @@
           "verified"
         ],
         "title": "DocumentStatus"
+      },
+      "EscalationsSummary": {
+        "properties": {
+          "total_escalated": {
+            "type": "integer",
+            "title": "Total Escalated"
+          },
+          "sla_breached_count": {
+            "type": "integer",
+            "title": "Sla Breached Count"
+          },
+          "fraud_risk_count": {
+            "type": "integer",
+            "title": "Fraud Risk Count"
+          },
+          "unassigned_count": {
+            "type": "integer",
+            "title": "Unassigned Count"
+          },
+          "sla_breached_documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentRead"
+            },
+            "type": "array",
+            "title": "Sla Breached Documents",
+            "default": []
+          },
+          "fraud_risk_documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentRead"
+            },
+            "type": "array",
+            "title": "Fraud Risk Documents",
+            "default": []
+          },
+          "unassigned_documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentRead"
+            },
+            "type": "array",
+            "title": "Unassigned Documents",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_escalated",
+          "sla_breached_count",
+          "fraud_risk_count",
+          "unassigned_count"
+        ],
+        "title": "EscalationsSummary"
       },
       "ExtractedFieldRead": {
         "properties": {
@@ -3063,6 +4109,143 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerifierJurisdictionCreate": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id",
+            "description": "ID of the verifier user"
+          },
+          "district": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "District",
+            "description": "District name"
+          },
+          "tehsil": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tehsil",
+            "description": "Optional Tehsil/Subdistrict name"
+          },
+          "village": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Village",
+            "description": "Optional Village name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "district"
+        ],
+        "title": "VerifierJurisdictionCreate"
+      },
+      "VerifierJurisdictionRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "district": {
+            "type": "string",
+            "title": "District"
+          },
+          "tehsil": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tehsil"
+          },
+          "village": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Village"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "verifier_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verifier Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "district",
+          "created_at"
+        ],
+        "title": "VerifierJurisdictionRead"
+      },
+      "VerifierUserSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "jurisdiction_count": {
+            "type": "integer",
+            "title": "Jurisdiction Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "role"
+        ],
+        "title": "VerifierUserSummary"
       }
     },
     "securitySchemes": {

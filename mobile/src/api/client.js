@@ -28,7 +28,7 @@ export async function setCustomApiBaseUrl(url) {
   }
 }
 
-const LAN_IP_DEFAULT = 'http://192.168.1.113:8000/api/v1';
+const LAN_IP_DEFAULT = 'http://10.228.177.204:8000/api/v1';
 const DEFAULT_API_BASE = Platform.OS === 'web' ? 'http://localhost:8000/api/v1' : LAN_IP_DEFAULT;
 
 export function getApiBaseUrl() {

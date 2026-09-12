@@ -22,7 +22,6 @@ import {
 } from '../services/syncEngine';
 import { useI18n } from '../i18n/i18n';
 import Card from '../components/common/Card';
-import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import { colors, radius, typography, spacing } from '../theme/theme';
 

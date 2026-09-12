@@ -12,7 +12,6 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { documentsApi } from '../api/client';
 import { checkImageQuality } from '../utils/imageQuality';
 import { addToQueue } from '../utils/queueDatabase';
 import { syncPendingQueue } from '../services/syncEngine';

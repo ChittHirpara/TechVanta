@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -42,22 +42,21 @@ export default function RegistryScreen({ navigation }) {
   const [districtFilter, setDistrictFilter] = useState('All Districts');
 
   // FAB pulse animation
-  const fabScale = React.useRef(new Animated.Value(1)).current;
+  const fabScale = useRef(new Animated.Value(1));
 
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(fabScale, { toValue: 1.08, duration: 900, useNativeDriver: true }),
-        Animated.timing(fabScale, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(fabScale.current, { toValue: 1.08, duration: 900, useNativeDriver: true }),
+        Animated.timing(fabScale.current, { toValue: 1, duration: 900, useNativeDriver: true }),
       ])
     );
     pulse.start();
     return () => pulse.stop();
-  }, [fabScale]);
+  }, []);
 
   const fetchDocuments = useCallback(async () => {
     try {
-      setError(null);
       const params = {};
       if (statusFilter !== 'all') params.status = statusFilter;
       if (districtFilter !== 'All Districts') params.district = districtFilter;
@@ -65,6 +64,7 @@ export default function RegistryScreen({ navigation }) {
 
       const res = await documentsApi.list(params);
       setDocuments(res.items || res || []);
+      setError(null);
 
       // Fetch status notifications
       try {
@@ -150,7 +150,7 @@ export default function RegistryScreen({ navigation }) {
     </Card>
   );
 
-  const ListHeader = () => (
+  const renderListHeader = () => (
     <View style={styles.filterSection}>
       <View style={styles.titleRow}>
         <View>
@@ -244,7 +244,7 @@ export default function RegistryScreen({ navigation }) {
 
       {loading && !refreshing ? (
         <>
-          <ListHeader />
+          {renderListHeader()}
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.govNavy600} />
             <Text style={styles.loadingText}>Fetching registry records…</Text>
@@ -256,7 +256,7 @@ export default function RegistryScreen({ navigation }) {
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
-          ListHeaderComponent={<ListHeader />}
+          ListHeaderComponent={renderListHeader()}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -281,7 +281,7 @@ export default function RegistryScreen({ navigation }) {
       )}
 
       {/* Floating Action Button — Capture new document */}
-      <Animated.View style={[styles.fabWrap, { transform: [{ scale: fabScale }] }]}>
+      <Animated.View style={[styles.fabWrap, { transform: [{ scale: fabScale.current }] }]}>
         <TouchableOpacity
           style={styles.fab}
           onPress={() => navigation.navigate('Capture')}
