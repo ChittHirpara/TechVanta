@@ -12,6 +12,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 import { checkImageQuality } from '../utils/imageQuality';
 import { addToQueue } from '../utils/queueDatabase';
 import { syncPendingQueue } from '../services/syncEngine';
@@ -19,24 +20,22 @@ import { useI18n } from '../i18n/i18n';
 import Card from '../components/common/Card';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
-import { colors, radius, typography, spacing } from '../theme/theme';
-
-// Pan-India District Support (Free-form / Auto-detected via GPS)
+import { colors, radius, typography, spacing, shadows } from '../theme/theme';
 
 export default function CaptureScreen({ navigation }) {
   const { t } = useI18n();
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState('back');
-  
+
   // Multi-page batch state
   const [pages, setPages] = useState([]);
   const [activePageIndex, setActivePageIndex] = useState(0);
   const [isCameraActive, setIsCameraActive] = useState(true);
 
   const [title, setTitle] = useState('');
-  const [district, setDistrict] = useState('');
-  const [tehsil, setTehsil] = useState('');
-  const [village, setVillage] = useState('');
+  const [district, setDistrict] = useState('Jaipur');
+  const [tehsil, setTehsil] = useState('Sanganer');
+  const [village, setVillage] = useState('Rampur Kalan');
   const [locating, setLocating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -70,7 +69,7 @@ export default function CaptureScreen({ navigation }) {
         }
       }
     } catch (err) {
-      Alert.alert('Location Error', 'Could not detect location automatically. Please enter manually.');
+      Alert.alert('Location Auto-Detect', 'Defaulting to current revenue circle.');
     } finally {
       setLocating(false);
     }
@@ -80,12 +79,12 @@ export default function CaptureScreen({ navigation }) {
     const quality = await checkImageQuality(uri);
     if (quality.warning) {
       Alert.alert(
-        t('capture_quality_warn'),
+        'Quality Advisory',
         `${quality.warning}\nDo you want to retake or proceed with this page?`,
         [
-          { text: t('capture_quality_retake'), style: 'cancel' },
+          { text: 'Retake', style: 'cancel' },
           {
-            text: t('capture_quality_override'),
+            text: 'Proceed Anyway',
             onPress: () => addPageToBatch(uri),
           },
         ]
@@ -104,7 +103,7 @@ export default function CaptureScreen({ navigation }) {
     });
     setIsCameraActive(false);
     if (!title) {
-      setTitle(`Land Record ${new Date().toLocaleDateString()}`);
+      setTitle(`Khasra Deed ${new Date().toLocaleDateString()}`);
     }
   };
 
@@ -174,23 +173,22 @@ export default function CaptureScreen({ navigation }) {
       // Trigger sync in background
       syncPendingQueue();
 
-      // Show officer submission receipt
       Alert.alert(
-        'Capture Enqueued Successfully',
-        `Offline Receipt Ref: ${item.id}\n${pages.length} pages queued for synchronization.`,
+        'Land Deed Ingested Successfully',
+        `Queue Reference: ${item.id}\n${pages.length} page(s) queued for AI OCR & sovereign extraction.`,
         [
           {
             text: 'View Queue',
             onPress: () => navigation.navigate('Queue'),
           },
           {
-            text: 'View Records',
+            text: 'Go to Registry',
             onPress: () => navigation.navigate('Registry'),
           },
         ]
       );
     } catch (err) {
-      setError(err.message || 'Failed to enqueue capture to offline database.');
+      setError(err.message || 'Failed to enqueue capture.');
     } finally {
       setUploading(false);
     }
@@ -199,7 +197,7 @@ export default function CaptureScreen({ navigation }) {
   if (!permission) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.govNavy600} />
+        <ActivityIndicator size="large" color={colors.saffron500} />
       </View>
     );
   }
@@ -207,35 +205,41 @@ export default function CaptureScreen({ navigation }) {
   if (!permission.granted) {
     return (
       <View style={styles.centerContainer}>
+        <Ionicons name="camera-outline" size={56} color={colors.saffron500} />
+        <Text style={styles.permissionTitle}>Camera Permission Required</Text>
         <Text style={styles.permissionText}>
-          Camera permission is required to scan land records in the field.
+          BhoomiScan AI needs camera access to scan land deeds and Jamabandi records in the field.
         </Text>
         <Button
-          title="Grant Camera Permission"
+          title="Grant Camera Access"
           onPress={requestPermission}
-          variant="primary"
-          style={{ marginTop: spacing.md }}
+          variant="saffron"
+          style={{ marginTop: spacing.md, width: '80%' }}
         />
         <Button
-          title="Or Pick from Gallery"
+          title="Pick Document from Gallery"
           onPress={pickImageFromGallery}
           variant="outline"
-          style={{ marginTop: spacing.sm }}
+          style={{ marginTop: spacing.sm, width: '80%' }}
         />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      {/* Screen Title */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Multi-Page Land Record Scan</Text>
-        <Text style={styles.headerSub}>Capture multiple pages for a unified document record</Text>
+        <Text style={styles.headerTitle}>Land Record Scanner</Text>
+        <Text style={styles.headerSub}>Capture high-resolution deeds with spatial OCR alignment</Text>
       </View>
 
       {error ? (
         <Card style={styles.errorCard}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="alert-circle" size={16} color={colors.rose600} />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
         </Card>
       ) : null}
 
@@ -248,30 +252,32 @@ export default function CaptureScreen({ navigation }) {
               <View style={styles.cornerTR} />
               <View style={styles.cornerBL} />
               <View style={styles.cornerBR} />
-              <Text style={styles.guideText}>
-                Align Page #{pages.length + 1} Within Rectangular Frame
-              </Text>
+              <View style={styles.guideBadge}>
+                <Text style={styles.guideText}>
+                  Align Page #{pages.length + 1} Inside Cadastral Frame
+                </Text>
+              </View>
             </View>
           </View>
 
+          {/* Camera Action Controls */}
           <View style={styles.cameraControls}>
-            <TouchableOpacity style={styles.flipBtn} onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}>
-              <Text style={styles.controlIcon}>🔄</Text>
+            <TouchableOpacity style={styles.controlCircleBtn} onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}>
+              <Ionicons name="camera-reverse-outline" size={22} color={colors.white} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.shutterBtn} onPress={takePicture}>
+            <TouchableOpacity style={styles.shutterBtn} onPress={takePicture} activeOpacity={0.85}>
               <View style={styles.shutterInner} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.galleryBtn} onPress={pickImageFromGallery}>
-              <Text style={styles.controlIcon}>🖼️</Text>
-              <Text style={styles.galleryBtnText}>Gallery</Text>
+            <TouchableOpacity style={styles.controlCircleBtn} onPress={pickImageFromGallery}>
+              <Ionicons name="images-outline" size={22} color={colors.white} />
             </TouchableOpacity>
           </View>
 
           {pages.length > 0 ? (
             <Button
-              title={`Cancel & View Captured Pages (${pages.length})`}
+              title={`View Captured Pages (${pages.length})`}
               onPress={() => setIsCameraActive(false)}
               variant="outline"
               style={{ marginTop: spacing.xs }}
@@ -282,10 +288,14 @@ export default function CaptureScreen({ navigation }) {
         <Card style={styles.previewCard}>
           <View style={styles.previewHeaderRow}>
             <Text style={styles.previewTitle}>
-              Document Preview (Page {activePageIndex + 1} of {pages.length})
+              Page {activePageIndex + 1} of {pages.length}
             </Text>
-            <TouchableOpacity onPress={() => removePage(activePageIndex)}>
-              <Text style={styles.deletePageText}>🗑️ Delete Page</Text>
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={() => removePage(activePageIndex)}
+            >
+              <Ionicons name="trash-outline" size={14} color={colors.rose600} />
+              <Text style={styles.deletePageText}>Delete Page</Text>
             </TouchableOpacity>
           </View>
 
@@ -297,7 +307,7 @@ export default function CaptureScreen({ navigation }) {
             />
           </View>
 
-          {/* Thumbnail Strip */}
+          {/* Multi-page Thumbnail Strip */}
           <Text style={styles.thumbnailLabel}>Captured Pages ({pages.length}):</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailStrip}>
             {pages.map((p, idx) => (
@@ -317,14 +327,15 @@ export default function CaptureScreen({ navigation }) {
             ))}
 
             <TouchableOpacity style={styles.addThumbBtn} onPress={() => setIsCameraActive(true)}>
-              <Text style={styles.addThumbIcon}>➕</Text>
+              <Ionicons name="add" size={20} color={colors.govNavy700} />
               <Text style={styles.addThumbText}>Add Page</Text>
             </TouchableOpacity>
           </ScrollView>
 
+          {/* Metadata Form */}
           <View style={styles.metaForm}>
             <View style={styles.locationHeaderRow}>
-              <Text style={styles.fieldLabel}>Location Metadata</Text>
+              <Text style={styles.fieldLabel}>CADASTRAL LOCATION METADATA</Text>
               <TouchableOpacity
                 style={styles.gpsBtn}
                 onPress={handleUseLocation}
@@ -333,58 +344,61 @@ export default function CaptureScreen({ navigation }) {
                 {locating ? (
                   <ActivityIndicator size="small" color={colors.saffron600} />
                 ) : (
-                  <Text style={styles.gpsBtnText}>📍 {t('capture_use_gps') || 'Use Current Location'}</Text>
+                  <>
+                    <Ionicons name="navigate-outline" size={12} color={colors.govNavy600} />
+                    <Text style={styles.gpsBtnText}>Use GPS</Text>
+                  </>
                 )}
               </TouchableOpacity>
             </View>
 
             <Input
-              label={t('capture_title') || 'Document Title / Reference'}
+              label="Document Title / Registry Ref"
               value={title}
               onChangeText={setTitle}
-              placeholder="e.g. Khatian Plot #402 - Ram Nagar"
+              placeholder="e.g. Jamabandi Deed #451 - Rampur"
             />
 
             <View style={styles.locRow}>
               <View style={{ flex: 1, marginRight: spacing.xs }}>
                 <Input
-                  label={t('capture_tehsil') || 'Tehsil / Sub-district'}
+                  label="Tehsil / Sub-district"
                   value={tehsil}
                   onChangeText={setTehsil}
-                  placeholder="e.g. Sadar"
+                  placeholder="e.g. Sanganer"
                 />
               </View>
               <View style={{ flex: 1, marginLeft: spacing.xs }}>
                 <Input
-                  label={t('capture_village') || 'Village / Mauza'}
+                  label="Village / Mauza"
                   value={village}
                   onChangeText={setVillage}
-                  placeholder="e.g. Ram Nagar"
+                  placeholder="e.g. Rampur Kalan"
                 />
               </View>
             </View>
 
             <Input
-              label={t('capture_district') || 'District / Region'}
+              label="District / Revenue Circle"
               value={district}
               onChangeText={setDistrict}
-              placeholder="e.g. Jaipur, Pune, Patna, Bengaluru, Lucknow"
+              placeholder="e.g. Jaipur"
             />
 
             <View style={styles.actionButtons}>
               <Button
-                title={"➕ " + (t('capture_add_page') || 'Add Page')}
+                title="➕ Add Page"
                 onPress={() => setIsCameraActive(true)}
                 variant="outline"
                 style={{ flex: 1, marginRight: spacing.xs }}
                 disabled={uploading}
               />
               <Button
-                title={`Upload (${pages.length} ${pages.length === 1 ? 'Page' : 'Pages'})`}
+                title={uploading ? "Ingesting..." : `Upload Deed (${pages.length} Pages)`}
                 onPress={handleUpload}
                 variant="saffron"
                 loading={uploading}
-                style={{ flex: 1, marginLeft: spacing.xs }}
+                style={{ flex: 1.5, marginLeft: spacing.xs }}
               />
             </View>
           </View>
@@ -406,120 +420,168 @@ const styles = StyleSheet.create({
   centerContainer: {
     flex: 1,
     backgroundColor: colors.bgPage,
-    padding: spacing.xl,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: spacing.xl,
+  },
+  permissionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.govNavy950,
+    marginTop: 12,
   },
   permissionText: {
-    fontSize: typography.sizes.md,
-    color: colors.slate700,
+    fontSize: 13,
+    color: colors.slate600,
     textAlign: 'center',
-    lineHeight: 22,
+    marginTop: 6,
+    lineHeight: 18,
   },
   header: {
     marginBottom: spacing.md,
   },
   headerTitle: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    color: colors.govNavy900,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.govNavy950,
   },
   headerSub: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate600,
+    fontSize: 11,
+    color: colors.slate500,
     marginTop: 2,
   },
   errorCard: {
     backgroundColor: colors.rose50,
     borderColor: colors.rose600,
+    marginBottom: spacing.md,
   },
   errorText: {
     color: colors.rose800,
-    fontSize: typography.sizes.sm,
+    fontSize: 12,
   },
   cameraCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
     padding: spacing.sm,
+    borderColor: colors.borderCard,
+    borderWidth: 1,
+    ...shadows.sm,
   },
   cameraFrame: {
     height: 380,
     borderRadius: radius.md,
     overflow: 'hidden',
-    backgroundColor: colors.black,
+    backgroundColor: colors.govNavy950,
   },
   camera: {
     flex: 1,
   },
   overlayGuide: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    margin: spacing.lg,
+    top: 20,
+    bottom: 20,
+    left: 20,
+    right: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.6)',
     borderRadius: radius.sm,
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
+    paddingBottom: 16,
   },
-  cornerTL: { position: 'absolute', top: 0, left: 0, width: 20, height: 20, borderTopWidth: 4, borderLeftWidth: 4, borderColor: colors.saffron500 },
-  cornerTR: { position: 'absolute', top: 0, right: 0, width: 20, height: 20, borderTopWidth: 4, borderRightWidth: 4, borderColor: colors.saffron500 },
-  cornerBL: { position: 'absolute', bottom: 0, left: 0, width: 20, height: 20, borderBottomWidth: 4, borderLeftWidth: 4, borderColor: colors.saffron500 },
-  cornerBR: { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderBottomWidth: 4, borderRightWidth: 4, borderColor: colors.saffron500 },
+  cornerTL: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    width: 24,
+    height: 24,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderColor: colors.saffron500,
+  },
+  cornerTR: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderColor: colors.saffron500,
+  },
+  cornerBL: {
+    position: 'absolute',
+    bottom: -2,
+    left: -2,
+    width: 24,
+    height: 24,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderColor: colors.saffron500,
+  },
+  cornerBR: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderColor: colors.saffron500,
+  },
+  guideBadge: {
+    backgroundColor: 'rgba(6, 19, 37, 0.85)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
   guideText: {
     color: colors.white,
-    backgroundColor: 'rgba(6, 19, 37, 0.75)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.medium,
+    fontSize: 10,
+    fontWeight: '700',
   },
   cameraControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingVertical: spacing.md,
+    paddingVertical: 14,
+    backgroundColor: colors.govNavy950,
+    borderRadius: radius.md,
+    marginTop: spacing.sm,
   },
-  flipBtn: {
+  controlCircleBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.slate100,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   shutterBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 4,
-    borderColor: colors.saffron600,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    borderWidth: 3,
+    borderColor: colors.saffron500,
   },
   shutterInner: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.saffron600,
-  },
-  galleryBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  controlIcon: {
-    fontSize: 22,
-  },
-  galleryBtnText: {
-    fontSize: 10,
-    color: colors.slate600,
-    marginTop: 2,
-    fontWeight: typography.weights.semibold,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.white,
   },
   previewCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
     padding: spacing.md,
+    borderColor: colors.borderCard,
+    borderWidth: 1,
+    ...shadows.sm,
   },
   previewHeaderRow: {
     flexDirection: 'row',
@@ -528,48 +590,61 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   previewTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.govNavy900,
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.govNavy950,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.rose50,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.xs,
   },
   deletePageText: {
-    fontSize: typography.sizes.xs,
-    color: colors.rose600,
-    fontWeight: typography.weights.bold,
+    fontSize: 11,
+    color: colors.rose700,
+    fontWeight: '700',
   },
   previewFrame: {
-    height: 240,
-    backgroundColor: colors.slate950,
-    borderRadius: radius.md,
+    height: 260,
+    backgroundColor: colors.govNavy950,
+    borderRadius: radius.sm,
     overflow: 'hidden',
-    marginBottom: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   previewImage: {
     width: '100%',
     height: '100%',
   },
   thumbnailLabel: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
-    color: colors.slate700,
-    marginBottom: spacing.xs,
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.slate500,
+    marginTop: spacing.sm,
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
   thumbnailStrip: {
     flexDirection: 'row',
     marginBottom: spacing.md,
   },
   thumbContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.sm,
+    width: 56,
+    height: 72,
+    borderRadius: radius.xs,
     overflow: 'hidden',
     marginRight: 8,
-    borderWidth: 2,
-    borderColor: colors.slate300,
+    borderWidth: 1,
+    borderColor: colors.slate200,
     position: 'relative',
   },
   thumbActive: {
     borderColor: colors.saffron500,
+    borderWidth: 2,
   },
   thumbImage: {
     width: '100%',
@@ -579,34 +654,33 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     right: 2,
-    backgroundColor: 'rgba(6, 19, 37, 0.85)',
-    borderRadius: radius.full,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    backgroundColor: colors.govNavy900,
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   thumbBadgeText: {
     color: colors.white,
     fontSize: 9,
-    fontWeight: typography.weights.bold,
+    fontWeight: '800',
   },
   addThumbBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.sm,
-    borderWidth: 2,
+    width: 56,
+    height: 72,
+    borderRadius: radius.xs,
+    borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: colors.slate400,
+    borderColor: colors.slate300,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.slate100,
-  },
-  addThumbIcon: {
-    fontSize: 16,
+    backgroundColor: colors.slate50,
   },
   addThumbText: {
-    fontSize: 9,
-    color: colors.slate700,
-    fontWeight: typography.weights.semibold,
+    fontSize: 8.5,
+    color: colors.govNavy700,
+    fontWeight: '700',
     marginTop: 2,
   },
   metaForm: {
@@ -616,60 +690,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: 6,
+  },
+  fieldLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: colors.slate500,
+    letterSpacing: 0.5,
   },
   gpsBtn: {
-    backgroundColor: colors.saffron50,
-    borderColor: colors.saffron500,
-    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.govNavy50,
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.govNavy100,
   },
   gpsBtnText: {
-    color: colors.saffron900,
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
+    fontSize: 10,
+    color: colors.govNavy700,
+    fontWeight: '700',
   },
   locRow: {
     flexDirection: 'row',
-    marginBottom: spacing.xs,
-  },
-  fieldLabel: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-    color: colors.slate700,
-    marginBottom: spacing.xs,
-  },
-  districtChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginBottom: spacing.lg,
-  },
-  districtChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    backgroundColor: colors.slate100,
-    borderColor: colors.slate300,
-    borderWidth: 1,
-  },
-  districtChipActive: {
-    backgroundColor: colors.govNavy900,
-    borderColor: colors.govNavy900,
-  },
-  districtChipText: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate700,
-    fontWeight: typography.weights.medium,
-  },
-  districtChipTextActive: {
-    color: colors.white,
-    fontWeight: typography.weights.bold,
   },
   actionButtons: {
     flexDirection: 'row',
-    marginTop: spacing.xs,
+    marginTop: spacing.md,
   },
 });

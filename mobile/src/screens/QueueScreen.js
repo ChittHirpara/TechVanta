@@ -10,6 +10,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   getQueueItems,
   deleteQueueItem,
@@ -23,14 +24,14 @@ import {
 import { useI18n } from '../i18n/i18n';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import { colors, radius, typography, spacing } from '../theme/theme';
+import { colors, radius, typography, spacing, shadows } from '../theme/theme';
 
 export default function QueueScreen({ navigation }) {
   const { t } = useI18n();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [filter, setFilter] = useState('all'); // all, queued, uploading, failed, uploaded
+  const [filter, setFilter] = useState('all');
 
   const loadQueue = useCallback(async () => {
     try {
@@ -125,7 +126,7 @@ export default function QueueScreen({ navigation }) {
               {item.title || 'Land Record Capture'}
             </Text>
             <Text style={styles.cardSub}>
-              ID: {item.id} • {item.pages?.length || 1} {t('page_count')}
+              ID: #{item.id} • {item.pages?.length || 1} Page(s)
             </Text>
           </View>
           <View
@@ -147,12 +148,12 @@ export default function QueueScreen({ navigation }) {
               ]}
             >
               {isUploaded
-                ? t('queue_status_uploaded')
+                ? 'SYNCED'
                 : isUploading
-                ? t('queue_status_uploading')
+                ? 'UPLOADING...'
                 : isFailed
-                ? t('queue_status_failed')
-                : t('queue_status_queued')}
+                ? 'FAILED'
+                : 'QUEUED'}
             </Text>
           </View>
         </View>
@@ -173,9 +174,12 @@ export default function QueueScreen({ navigation }) {
 
         {/* Location Metadata */}
         <View style={styles.metaRow}>
-          <Text style={styles.metaText}>
-            📍 {[item.village, item.tehsil, item.district].filter(Boolean).join(', ') || 'Location N/A'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+            <Ionicons name="location-outline" size={13} color={colors.slate500} />
+            <Text style={styles.metaText} numberOfLines={1}>
+              {[item.village, item.tehsil, item.district].filter(Boolean).join(', ') || 'Jaipur Division'}
+            </Text>
+          </View>
           <Text style={styles.metaDate}>
             {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
@@ -183,37 +187,39 @@ export default function QueueScreen({ navigation }) {
 
         {isFailed && item.failure_reason ? (
           <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>⚠️ {item.failure_reason}</Text>
+            <Ionicons name="alert-circle-outline" size={14} color={colors.rose600} />
+            <Text style={styles.errorBannerText}>{item.failure_reason}</Text>
           </View>
         ) : null}
 
         {/* Actions */}
         <View style={styles.actionRow}>
           {isFailed || isQueued ? (
-            <Button
-              title="🔄 Sync Now"
-              variant="primary"
-              size="sm"
+            <TouchableOpacity
+              style={styles.syncItemBtn}
               onPress={() => handleRetryItem(item.id)}
-              loading={isUploading}
-              style={{ flex: 1, marginRight: spacing.sm }}
-            />
+            >
+              <Ionicons name="sync-outline" size={14} color={colors.white} />
+              <Text style={styles.syncItemBtnText}>Sync Now</Text>
+            </TouchableOpacity>
           ) : null}
+
           {isUploaded && item.server_doc_id ? (
-            <Button
-              title="👁️ View Details"
-              variant="outline"
-              size="sm"
+            <TouchableOpacity
+              style={styles.viewDeedBtn}
               onPress={() => navigation.navigate('Review', { documentId: item.server_doc_id })}
-              style={{ flex: 1, marginRight: spacing.sm }}
-            />
+            >
+              <Ionicons name="eye-outline" size={14} color={colors.govNavy700} />
+              <Text style={styles.viewDeedBtnText}>Inspect Ingested Deed</Text>
+            </TouchableOpacity>
           ) : null}
-          <Button
-            title="🗑️"
-            variant="ghost"
-            size="sm"
+
+          <TouchableOpacity
+            style={styles.deleteIconBtn}
             onPress={() => handleDeleteItem(item.id)}
-          />
+          >
+            <Ionicons name="trash-outline" size={16} color={colors.rose600} />
+          </TouchableOpacity>
         </View>
       </Card>
     );
@@ -221,76 +227,72 @@ export default function QueueScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Header Bar */}
+      {/* Top Sovereign Summary */}
       <View style={styles.topBanner}>
         <View>
-          <Text style={styles.bannerTitle}>{t('queue_title')}</Text>
+          <Text style={styles.bannerTitle}>Offline Sync Engine</Text>
           <Text style={styles.bannerSub}>
-            {pendingCount} Pending • {uploadedCount} Synced
+            {pendingCount} Pending Upload • {uploadedCount} Synced
           </Text>
         </View>
-        <Button
-          title={syncing ? 'Syncing...' : '🔄 Sync All'}
-          variant="saffron"
-          size="sm"
+        <TouchableOpacity
+          style={[styles.syncAllBtn, (pendingCount === 0 || syncing) && styles.syncAllBtnDisabled]}
           onPress={handleSyncAll}
-          loading={syncing}
           disabled={pendingCount === 0 || syncing}
-        />
+        >
+          {syncing ? (
+            <ActivityIndicator size="small" color={colors.govNavy950} />
+          ) : (
+            <>
+              <Ionicons name="cloud-upload" size={16} color={colors.govNavy950} />
+              <Text style={styles.syncAllText}>Sync All</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Filter Tabs */}
       <View style={styles.filterRow}>
-        {['all', 'queued', 'failed', 'uploaded'].map((f) => (
+        {[
+          { id: 'all', label: 'All' },
+          { id: 'queued', label: 'Queued' },
+          { id: 'failed', label: 'Failed' },
+          { id: 'uploaded', label: 'Synced' },
+        ].map((f) => (
           <TouchableOpacity
-            key={f}
-            style={[styles.filterTab, filter === f && styles.filterTabActive]}
-            onPress={() => setFilter(f)}
+            key={f.id}
+            style={[styles.filterTab, filter === f.id && styles.filterTabActive]}
+            onPress={() => setFilter(f.id)}
           >
-            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-              {f.toUpperCase()}
+            <Text style={[styles.filterText, filter === f.id && styles.filterTextActive]}>
+              {f.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {uploadedCount > 0 && filter === 'uploaded' ? (
-        <TouchableOpacity style={styles.clearBtn} onPress={handleClearCompleted}>
-          <Text style={styles.clearBtnText}>🧹 Clear Synced Cache</Text>
-        </TouchableOpacity>
-      ) : null}
-
-      {loading && !syncing ? (
+      {loading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.govNavy600} />
+          <ActivityIndicator size="large" color={colors.saffron500} />
         </View>
       ) : (
         <FlatList
           data={filteredItems}
-          keyExtractor={(i) => i.id}
+          keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl
               refreshing={loading}
               onRefresh={loadQueue}
-              colors={[colors.govNavy600]}
-              tintColor={colors.govNavy600}
+              colors={[colors.saffron500]}
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>📦</Text>
-              <Text style={styles.emptyTitle}>{t('queue_empty')}</Text>
-              <Text style={styles.emptySub}>
-                All captured land records are synced with the central repository.
-              </Text>
-              <Button
-                title="📸 Scan New Record"
-                variant="primary"
-                style={{ marginTop: spacing.md }}
-                onPress={() => navigation.navigate('Capture')}
-              />
+            <View style={styles.emptyBox}>
+              <Ionicons name="file-tray-outline" size={44} color={colors.slate300} />
+              <Text style={styles.emptyTitle}>Offline Queue is Empty</Text>
+              <Text style={styles.emptySub}>Captures taken in the field without network will appear here</Text>
             </View>
           }
         />
@@ -305,189 +307,242 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgPage,
   },
   topBanner: {
-    backgroundColor: colors.govNavy900,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderCard,
   },
   bannerTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: '700',
-    color: colors.white,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.govNavy950,
   },
   bannerSub: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate300,
+    fontSize: 11,
+    color: colors.slate500,
     marginTop: 2,
+  },
+  syncAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.saffron500,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radius.full,
+  },
+  syncAllBtnDisabled: {
+    opacity: 0.5,
+  },
+  syncAllText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.govNavy950,
   },
   filterRow: {
     flexDirection: 'row',
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.slate200,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: 8,
   },
   filterTab: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.borderCard,
   },
   filterTabActive: {
-    borderBottomColor: colors.govNavy600,
+    backgroundColor: colors.govNavy900,
+    borderColor: colors.govNavy900,
   },
   filterText: {
-    fontSize: typography.sizes.xs,
+    fontSize: 11,
     fontWeight: '600',
-    color: colors.slate500,
+    color: colors.slate600,
   },
   filterTextActive: {
-    color: colors.govNavy600,
+    color: colors.white,
+    fontWeight: '700',
   },
   listContent: {
     padding: spacing.md,
     paddingBottom: spacing.xxl,
   },
   card: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.md,
     marginBottom: spacing.md,
+    borderColor: colors.borderCard,
+    borderWidth: 1,
+    ...shadows.sm,
   },
   failedCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: colors.rose600,
+    borderColor: colors.rose300,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 8,
   },
   cardTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: '700',
-    color: colors.slate900,
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.govNavy950,
   },
   cardSub: {
-    fontSize: typography.sizes.xs,
+    fontSize: 10.5,
     color: colors.slate500,
-    marginTop: 2,
+    marginTop: 1,
   },
   statusPill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: radius.full,
+    borderRadius: radius.xs,
+  },
+  pillUploaded: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+  },
+  pillUploading: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+  },
+  pillFailed: {
+    backgroundColor: 'rgba(220, 38, 38, 0.15)',
   },
   pillQueued: {
     backgroundColor: colors.slate100,
   },
-  pillUploading: {
-    backgroundColor: colors.saffron100,
-  },
-  pillUploaded: {
-    backgroundColor: colors.emerald100,
-  },
-  pillFailed: {
-    backgroundColor: colors.rose100,
-  },
   statusText: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
   thumbnailRow: {
     flexDirection: 'row',
-    marginTop: spacing.sm,
     gap: 6,
+    marginVertical: 8,
   },
   thumbImage: {
     width: 48,
-    height: 60,
+    height: 64,
     borderRadius: radius.xs,
-    backgroundColor: colors.slate200,
+    backgroundColor: colors.slate100,
   },
   thumbMore: {
     width: 48,
-    height: 60,
+    height: 64,
     borderRadius: radius.xs,
-    backgroundColor: colors.slate800,
-    justifyContent: 'center',
+    backgroundColor: colors.govNavy800,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   thumbMoreText: {
     color: colors.white,
-    fontSize: typography.sizes.xs,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.sm,
-    paddingTop: spacing.xs,
+    marginTop: 6,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: colors.slate100,
   },
   metaText: {
-    fontSize: typography.sizes.xs,
+    fontSize: 11,
     color: colors.slate600,
-    flex: 1,
+    fontWeight: '500',
   },
   metaDate: {
-    fontSize: typography.sizes.xs,
+    fontSize: 10,
     color: colors.slate400,
-    marginLeft: spacing.xs,
   },
   errorBanner: {
-    marginTop: spacing.xs,
-    padding: spacing.xs,
     backgroundColor: colors.rose50,
     borderRadius: radius.xs,
+    padding: 6,
+    marginTop: 8,
   },
   errorBannerText: {
-    fontSize: typography.sizes.xs,
-    color: colors.rose800,
+    color: colors.rose700,
+    fontSize: 11,
   },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.sm,
+    gap: 8,
+    marginTop: spacing.md,
   },
-  clearBtn: {
-    padding: spacing.sm,
+  syncItemBtn: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.slate100,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.govNavy900,
+    paddingVertical: 8,
     borderRadius: radius.sm,
   },
-  clearBtnText: {
-    fontSize: typography.sizes.xs,
-    color: colors.slate700,
-    fontWeight: '600',
+  syncItemBtnText: {
+    color: colors.white,
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  viewDeedBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.govNavy50,
+    borderColor: colors.govNavy100,
+    borderWidth: 1,
+    paddingVertical: 8,
+    borderRadius: radius.sm,
+  },
+  viewDeedBtnText: {
+    color: colors.govNavy700,
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  deleteIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
+    backgroundColor: colors.rose50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.rose100,
   },
   centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
+    paddingVertical: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xxl,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: spacing.sm,
+  emptyBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
   emptyTitle: {
-    fontSize: typography.sizes.lg,
+    fontSize: 14,
     fontWeight: '700',
-    color: colors.slate800,
+    color: colors.slate600,
+    marginTop: 10,
   },
   emptySub: {
-    fontSize: typography.sizes.sm,
-    color: colors.slate500,
+    fontSize: 11,
+    color: colors.slate400,
+    marginTop: 2,
     textAlign: 'center',
-    marginTop: 4,
-    paddingHorizontal: spacing.lg,
   },
 });

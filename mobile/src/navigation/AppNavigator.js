@@ -6,13 +6,9 @@ import { useAuth } from '../context/AuthContext';
 
 import GovHeader from '../components/common/GovHeader';
 import LoginScreen from '../screens/LoginScreen';
-import CaptureScreen from '../screens/CaptureScreen';
-import ProcessingScreen from '../screens/ProcessingScreen';
+import MainTabs from './MainTabs';
 import ReviewScreen from '../screens/ReviewScreen';
-import RegistryScreen from '../screens/RegistryScreen';
-import AuditScreen from '../screens/AuditScreen';
-import QueueScreen from '../screens/QueueScreen';
-import ProfileScreen from '../screens/ProfileScreen';
+import ProcessingScreen from '../screens/ProcessingScreen';
 import { colors } from '../theme/theme';
 
 const Stack = createNativeStackNavigator();
@@ -23,7 +19,7 @@ export default function AppNavigator() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.govNavy600} />
+        <ActivityIndicator size="large" color={colors.saffron500} />
       </View>
     );
   }
@@ -31,27 +27,39 @@ export default function AppNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={isAuthenticated ? 'Registry' : 'Login'}
+        initialRouteName={isAuthenticated ? 'Main' : 'Login'}
         screenOptions={{
-          header: () => <GovHeader />,
-          contentStyle: { backgroundColor: colors.bgPage },
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.govNavy950 },
         }}
       >
         {!isAuthenticated ? (
           <Stack.Screen
             name="Login"
             component={LoginScreen}
-            options={{ headerShown: false }}
           />
         ) : (
           <>
-            <Stack.Screen name="Registry" component={RegistryScreen} />
-            <Stack.Screen name="Capture" component={CaptureScreen} />
-            <Stack.Screen name="Queue" component={QueueScreen} />
-            <Stack.Screen name="Processing" component={ProcessingScreen} />
-            <Stack.Screen name="Review" component={ReviewScreen} />
-            <Stack.Screen name="Audit" component={AuditScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen
+              name="Main"
+              component={MainTabs}
+            />
+            <Stack.Screen
+              name="Review"
+              component={ReviewScreen}
+              options={{
+                headerShown: true,
+                header: () => <GovHeader title="Deed Verification & Audit" showBack={true} />,
+              }}
+            />
+            <Stack.Screen
+              name="Processing"
+              component={ProcessingScreen}
+              options={{
+                headerShown: true,
+                header: () => <GovHeader title="Real-time Pipeline Stream" showBack={true} />,
+              }}
+            />
           </>
         )}
       </Stack.Navigator>
