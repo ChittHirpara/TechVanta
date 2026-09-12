@@ -101,6 +101,9 @@ class Settings(BaseSettings):
     # Weight given to OCR confidence vs LLM extraction confidence (must sum to 1)
     ocr_confidence_weight: float = 0.40
     extraction_confidence_weight: float = 0.60
+    # Verification SLA threshold in hours for admin escalation alerts
+    verification_sla_hours: int = 48
+
 
     # ── Redis ─────────────────────────────────────────────────────────────────
     # Optional Redis URL for rate limiting (and future caching/task queuing).

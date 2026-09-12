@@ -7,10 +7,13 @@ import Navigation from './components/common/Navigation';
 import Toast from './components/common/Toast';
 import AuthModal from './components/auth/AuthModal';
 import Dashboard from './components/dashboard/Dashboard';
+import Escalations from './components/dashboard/Escalations';
+import JurisdictionManagement from './components/dashboard/JurisdictionManagement';
 import Registry from './components/registry/Registry';
 import Ingestion from './components/ingestion/Ingestion';
 import Workspace from './components/workspace/Workspace';
 import { IconEmblem, IconLock, IconShield, IconCheck } from './components/common/Icons';
+
 
 export default function App() {
   const { t } = useTranslation();
@@ -183,6 +186,18 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'escalations' && (
+              <Escalations
+                onSelectDoc={handleSelectDoc}
+              />
+            )}
+
+            {activeTab === 'jurisdictions' && (
+              <JurisdictionManagement
+                showToast={showToast}
+              />
+            )}
+
             {activeTab === 'documents' && (
               <Registry
                 onSelectDoc={handleSelectDoc}
@@ -190,6 +205,7 @@ export default function App() {
                 onDocCountUpdate={setDocCount}
               />
             )}
+
 
             {activeTab === 'upload' && (
               <Ingestion
